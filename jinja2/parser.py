@@ -173,16 +173,24 @@ class Parser(object):
             next(self.stream)
         return result
 
-    def parse_set(self):
-        """Parse an assign statement."""
+    def parse_set(self, name='set'):
+        """Parse a set statement."""
         lineno = next(self.stream).lineno
         target = self.parse_assign_target()
         if self.stream.skip_if('assign'):
             expr = self.parse_tuple()
             return nodes.Assign(target, expr, lineno=lineno)
-        body = self.parse_statements(('name:endset',),
+        body = self.parse_statements(('name:end{}'.format(name),),
                                      drop_needle=True)
         return nodes.AssignBlock(target, body, lineno=lineno)
+
+    def parse_assign(self):
+        """Parse an assign statement."""
+        return self.parse_set(name='assign')
+
+    def parse_capture(self):
+        """Parse a capture statement."""
+        return self.parse_set(name='capture')
 
     def parse_for(self):
         """Parse a for loop."""
