@@ -14,9 +14,9 @@ from jinja2.lexer import describe_token, describe_token_expr
 from jinja2._compat import imap
 
 
-_statement_keywords = frozenset(['for', 'if', 'block', 'extends', 'print',
-                                 'macro', 'include', 'from', 'import',
-                                 'set'])
+_statement_keywords = frozenset(['for', 'if', 'unless', 'block', 'extends',
+                                 'print', 'macro', 'include', 'section',
+                                 'from', 'import', 'set', 'assign', 'capture'])
 _compare_operators = frozenset(['eq', 'ne', 'lt', 'lteq', 'gt', 'gteq'])
 
 _math_nodes = {
@@ -203,26 +203,36 @@ class Parser(object):
         return nodes.For(target, iter, body, else_, test,
                          recursive, lineno=lineno)
 
+    def _parse_if(self, node, name, negate=False):
+        """Helper method for parse_if and parse_unless"""
+        node.test = self.parse_tuple(with_condexpr=False)
+        if negate:
+            node.test = nodes.Not(node.test)
+        node.body = self.parse_statements(('name:elif', 'name:elsif',
+                                           'name:else',
+                                           'name:end{}'.format(name)))
+        token = next(self.stream)
+        if token.test('name:elif') or token.test('name:elsif'):
+            new_node = nodes.If(lineno=self.stream.current.lineno)
+            node.else_ = [new_node]
+            self._parse_if(new_node, name)
+        elif token.test('name:else'):
+            node.else_ = self.parse_statements(('name:end{}'.format(name),),
+                                               drop_needle=True)
+        else:
+            node.else_ = []
+
     def parse_if(self):
         """Parse an if construct."""
-        node = result = nodes.If(lineno=self.stream.expect('name:if').lineno)
-        while 1:
-            node.test = self.parse_tuple(with_condexpr=False)
-            node.body = self.parse_statements(('name:elif', 'name:elsif',
-                                               'name:else', 'name:endif'))
-            token = next(self.stream)
-            if token.test('name:elif') or token.test('name:elsif'):
-                new_node = nodes.If(lineno=self.stream.current.lineno)
-                node.else_ = [new_node]
-                node = new_node
-                continue
-            elif token.test('name:else'):
-                node.else_ = self.parse_statements(('name:endif',),
-                                                   drop_needle=True)
-            else:
-                node.else_ = []
-            break
-        return result
+        node = nodes.If(lineno=self.stream.expect('name:if').lineno)
+        self._parse_if(node, 'if')
+        return node
+
+    def parse_unless(self):
+        """Parse an unless construct."""
+        node = nodes.If(lineno=self.stream.expect('name:unless').lineno)
+        self._parse_if(node, 'unless', negate=True)
+        return node
 
     def parse_block(self):
         node = nodes.Block(lineno=next(self.stream).lineno)
