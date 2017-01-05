@@ -15,11 +15,12 @@ from random import choice
 from itertools import groupby
 from collections import namedtuple
 from jinja2.utils import Markup, escape, pformat, urlize, soft_unicode, \
-     unicode_urlencode
+    unicode_urlencode
 from jinja2.runtime import Undefined
 from jinja2.exceptions import FilterArgumentError
 from jinja2._compat import imap, string_types, text_type, iteritems
-
+from jinja2.liquid.filters import do_abs, do_append, do_ceil, do_divided_by, \
+    do_modulo
 
 _word_re = re.compile(r'\w+', re.UNICODE)
 _word_beginning_split_re = re.compile(r'([-\s\(\{\[\<]+)', re.UNICODE)
@@ -62,6 +63,7 @@ def make_attrgetter(environment, attribute):
        or ('.' not in attribute and not attribute.isdigit()):
         return lambda x: environment.getitem(x, attribute)
     attribute = attribute.split('.')
+
     def attrgetter(item):
         for part in attribute:
             if part.isdigit():
@@ -213,6 +215,7 @@ def do_dictsort(value, case_sensitive=False, by='key'):
     else:
         raise FilterArgumentError('You can only sort by either '
                                   '"key" or "value"')
+
     def sort_func(item):
         value = item[pos]
         if isinstance(value, string_types) and not case_sensitive:
@@ -259,6 +262,7 @@ def do_sort(environment, value, reverse=False, case_sensitive=False,
         sort_func = None
     if attribute is not None:
         getter = make_attrgetter(environment, attribute)
+
         def sort_func(item, processor=sort_func or (lambda x: x)):
             return processor(getter(item))
     return sorted(value, key=sort_func, reverse=reverse)
@@ -671,7 +675,7 @@ def do_round(value, precision=0, method='common'):
         {{ 42.55|round|int }}
             -> 43
     """
-    if not method in ('common', 'ceil', 'floor'):
+    if method not in ('common', 'ceil', 'floor'):
         raise FilterArgumentError('method must be common, ceil or floor')
     if method == 'common':
         return round(value, precision)
@@ -680,6 +684,7 @@ def do_round(value, precision=0, method='common'):
 
 
 _GroupTuple = namedtuple('_GroupTuple', ['grouper', 'list'])
+
 
 @environmentfilter
 def do_groupby(environment, value, attribute):
@@ -928,8 +933,10 @@ def prepare_map(args, kwargs):
             args = args[3:]
         except LookupError:
             raise FilterArgumentError('map requires a filter argument')
-        func = lambda item: context.environment.call_filter(
-            name, item, args, kwargs, context=context)
+
+        def func(item):
+            return context.environment.call_filter(name, item, args, kwargs,
+                                                   context=context)
 
     return seq, func
 
@@ -946,13 +953,16 @@ def prepare_select_or_reject(args, kwargs, modfunc, lookup_attr):
         off = 1
     else:
         off = 0
-        transfunc = lambda x: x
+
+        def transfunc(x):
+            return x
 
     try:
         name = args[2 + off]
         args = args[3 + off:]
-        func = lambda item: context.environment.call_test(
-            name, item, args, kwargs)
+
+        def func(item):
+            return context.environment.call_test(name, item, args, kwargs)
     except LookupError:
         func = bool
 
@@ -966,55 +976,58 @@ def select_or_reject(args, kwargs, modfunc, lookup_attr):
             if func(item):
                 yield item
 
-
 FILTERS = {
-    'abs':                  abs,
-    'attr':                 do_attr,
-    'batch':                do_batch,
-    'capitalize':           do_capitalize,
-    'center':               do_center,
-    'count':                len,
-    'd':                    do_default,
-    'default':              do_default,
-    'dictsort':             do_dictsort,
-    'e':                    escape,
-    'escape':               escape,
-    'filesizeformat':       do_filesizeformat,
-    'first':                do_first,
-    'float':                do_float,
-    'forceescape':          do_forceescape,
-    'format':               do_format,
-    'groupby':              do_groupby,
-    'indent':               do_indent,
-    'int':                  do_int,
-    'join':                 do_join,
-    'last':                 do_last,
-    'length':               len,
-    'list':                 do_list,
-    'lower':                do_lower,
-    'map':                  do_map,
-    'pprint':               do_pprint,
-    'random':               do_random,
-    'reject':               do_reject,
-    'rejectattr':           do_rejectattr,
-    'replace':              do_replace,
-    'reverse':              do_reverse,
-    'round':                do_round,
-    'safe':                 do_mark_safe,
-    'select':               do_select,
-    'selectattr':           do_selectattr,
-    'slice':                do_slice,
-    'sort':                 do_sort,
-    'string':               soft_unicode,
-    'striptags':            do_striptags,
-    'sum':                  do_sum,
-    'title':                do_title,
-    'trim':                 do_trim,
-    'truncate':             do_truncate,
-    'upper':                do_upper,
-    'urlencode':            do_urlencode,
-    'urlize':               do_urlize,
-    'wordcount':            do_wordcount,
-    'wordwrap':             do_wordwrap,
-    'xmlattr':              do_xmlattr,
+    'abs': do_abs,
+    'append': do_append,
+    'attr': do_attr,
+    'batch': do_batch,
+    'capitalize': do_capitalize,
+    'ceil': do_ceil,
+    'center': do_center,
+    'count': len,
+    'd': do_default,
+    'default': do_default,
+    'dictsort': do_dictsort,
+    'divided_by': do_divided_by,
+    'e': escape,
+    'escape': escape,
+    'filesizeformat': do_filesizeformat,
+    'first': do_first,
+    'float': do_float,
+    'forceescape': do_forceescape,
+    'format': do_format,
+    'groupby': do_groupby,
+    'indent': do_indent,
+    'int': do_int,
+    'join': do_join,
+    'last': do_last,
+    'length': len,
+    'list': do_list,
+    'lower': do_lower,
+    'map': do_map,
+    'modulo': do_modulo,
+    'pprint': do_pprint,
+    'random': do_random,
+    'reject': do_reject,
+    'rejectattr': do_rejectattr,
+    'replace': do_replace,
+    'reverse': do_reverse,
+    'round': do_round,
+    'safe': do_mark_safe,
+    'select': do_select,
+    'selectattr': do_selectattr,
+    'slice': do_slice,
+    'sort': do_sort,
+    'string': soft_unicode,
+    'striptags': do_striptags,
+    'sum': do_sum,
+    'title': do_title,
+    'trim': do_trim,
+    'truncate': do_truncate,
+    'upper': do_upper,
+    'urlencode': do_urlencode,
+    'urlize': do_urlize,
+    'wordcount': do_wordcount,
+    'wordwrap': do_wordwrap,
+    'xmlattr': do_xmlattr,
 }

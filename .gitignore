@@ -1,3 +1,4 @@
+*.swp
 *.so
 docs/_build/
 *.pyc
