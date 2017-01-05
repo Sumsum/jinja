@@ -226,12 +226,12 @@ and bar comment #}
         assert_error(
             '{% if foo %}{% for item in seq %}...{% endfor %}{% endfor %}',
             "Encountered unknown tag 'endfor'. Jinja was looking for "
-            "the following tags: 'elif' or 'else' or 'endif'. The "
+            "the following tags: 'elif' or 'elsif' or 'else' or 'endif'. The "
             "innermost block that needs to be closed is 'if'.")
         assert_error('{% if foo %}',
                      "Unexpected end of template. Jinja was looking for the "
-                     "following tags: 'elif' or 'else' or 'endif'. The "
-                     "innermost block that needs to be closed is 'if'.")
+                     "following tags: 'elif' or 'elsif' or 'else' or 'endif'. "
+                     "The innermost block that needs to be closed is 'if'.")
         assert_error('{% for item in seq %}',
                      "Unexpected end of template. Jinja was looking for the "
                      "following tags: 'endfor' or 'else'. The innermost block "
