@@ -1,4 +1,5 @@
 import math
+from .datastructures import List
 
 
 def to_number(value):
@@ -57,3 +58,37 @@ def do_modulo(value, modulo):
     https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L329
     """
     return to_number(value) % to_number(modulo)
+
+
+def do_compact(value, remove=None):
+    """
+    Removes values from a list.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L190
+    """
+    return List(v for v in value if v != remove)
+
+
+def do_map(value, attribute):
+    """
+    Creates a list of values by extracting the values of a named attribute from another object.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L175
+    """
+    def proc(obj):
+        if isinstance(obj, dict):
+            return obj.get(attribute, None)
+        if hasattr(obj, 'to_liquid'):
+            obj.to_liquid()
+        val = getattr(obj, attribute, None)
+        if callable(val):
+            return val()
+        return val
+
+    if isinstance(value, dict):
+        return List(proc(value))
+
+    res = List()
+    for obj in value:
+        v = proc(obj)
+        if v is not None:
+            res.append(v)
+    return res

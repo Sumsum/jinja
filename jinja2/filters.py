@@ -20,7 +20,8 @@ from jinja2.runtime import Undefined
 from jinja2.exceptions import FilterArgumentError
 from jinja2._compat import imap, string_types, text_type, iteritems
 from jinja2.liquid.filters import do_abs, do_append, do_ceil, do_divided_by, \
-    do_modulo
+    do_modulo, do_compact, do_map
+
 
 _word_re = re.compile(r'\w+', re.UNICODE)
 _word_beginning_split_re = re.compile(r'([-\s\(\{\[\<]+)', re.UNICODE)
@@ -291,7 +292,7 @@ def do_default(value, default_value=u'', boolean=False):
 
 
 @evalcontextfilter
-def do_join(eval_ctx, value, d=u'', attribute=None):
+def do_join(eval_ctx, value, d=u' ', attribute=None):
     """Return a string which is the concatenation of the strings in the
     sequence. The separator between elements is an empty string per
     default, you can define it with the optional parameter:
@@ -302,7 +303,7 @@ def do_join(eval_ctx, value, d=u'', attribute=None):
             -> 1|2|3
 
         {{ [1, 2, 3]|join }}
-            -> 123
+            -> 1 2 3
 
     It is also possible to join certain attributes of an object:
 
@@ -812,35 +813,6 @@ def do_attr(environment, obj, name):
 
 
 @contextfilter
-def do_map(*args, **kwargs):
-    """Applies a filter on a sequence of objects or looks up an attribute.
-    This is useful when dealing with lists of objects but you are really
-    only interested in a certain value of it.
-
-    The basic usage is mapping on an attribute.  Imagine you have a list
-    of users but you are only interested in a list of usernames:
-
-    .. sourcecode:: jinja
-
-        Users on this page: {{ users|map(attribute='username')|join(', ') }}
-
-    Alternatively you can let it invoke a filter by passing the name of the
-    filter and the arguments afterwards.  A good example would be applying a
-    text conversion filter on a sequence:
-
-    .. sourcecode:: jinja
-
-        Users on this page: {{ titles|map('lower')|join(', ') }}
-
-    .. versionadded:: 2.7
-    """
-    seq, func = prepare_map(args, kwargs)
-    if seq:
-        for item in seq:
-            yield func(item)
-
-
-@contextfilter
 def do_select(*args, **kwargs):
     """Filters a sequence of objects by applying a test to each object,
     and only selecting the objects with the test succeeding.
@@ -917,30 +889,6 @@ def do_rejectattr(*args, **kwargs):
     return select_or_reject(args, kwargs, lambda x: not x, True)
 
 
-def prepare_map(args, kwargs):
-    context = args[0]
-    seq = args[1]
-
-    if len(args) == 2 and 'attribute' in kwargs:
-        attribute = kwargs.pop('attribute')
-        if kwargs:
-            raise FilterArgumentError('Unexpected keyword argument %r' %
-                next(iter(kwargs)))
-        func = make_attrgetter(context.environment, attribute)
-    else:
-        try:
-            name = args[2]
-            args = args[3:]
-        except LookupError:
-            raise FilterArgumentError('map requires a filter argument')
-
-        def func(item):
-            return context.environment.call_filter(name, item, args, kwargs,
-                                                   context=context)
-
-    return seq, func
-
-
 def prepare_select_or_reject(args, kwargs, modfunc, lookup_attr):
     context = args[0]
     seq = args[1]
@@ -984,6 +932,7 @@ FILTERS = {
     'capitalize': do_capitalize,
     'ceil': do_ceil,
     'center': do_center,
+    'compact': do_compact,
     'count': len,
     'd': do_default,
     'default': do_default,
