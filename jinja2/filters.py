@@ -24,7 +24,7 @@ from jinja2.liquid.datastructures import List
 from jinja2.liquid.filters import do_abs, do_append, do_ceil, do_divided_by, \
     do_modulo, do_compact, do_map, do_escape, do_escape_once, do_floor, \
     do_lstrip, do_rstrip, do_minus, do_newline_to_br, do_plus, do_prepend, \
-    to_number, do_len, do_split, do_strip, do_strip_newlines
+    to_number, do_len, do_split, do_strip, do_strip_newlines, do_times
 
 
 _word_re = re.compile(r'\w+', re.UNICODE)
@@ -1133,6 +1133,7 @@ FILTERS = {
     'strip_html': do_striptags,
     'strip_newlines': do_strip_newlines,
     'sum': do_sum,
+    'times': do_times,
     'title': do_title,
     'tojson': do_tojson,
     'trim': do_trim,

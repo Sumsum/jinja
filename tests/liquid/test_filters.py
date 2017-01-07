@@ -421,3 +421,10 @@ class TestLiquidFilter():
         assert tmpl.render(source="a\nb\nc") == 'abc'
         tmpl = env.from_string("{{ source | strip_newlines }}")
         assert tmpl.render(source="a\r\nb\nc") == 'abc'
+
+    def test_times(self, env):
+        """
+        Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L420
+        """
+        tmpl = env.from_string("{{ 3 | times:4 }}")
+        assert tmpl.render() == '12'
