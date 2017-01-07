@@ -8,3 +8,4 @@ Filters
 - sort, reordering of arguments where attribute is first instead of reverse
 - truncate, reordering of argumets from length, killwords, end, leeway to
   length, end, killwords, leeway.
+- default, boolean argument is by defualt True and not False

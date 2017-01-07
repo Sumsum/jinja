@@ -30,7 +30,7 @@ class TestFilter(object):
 
     def test_default(self, env):
         tmpl = env.from_string(
-            "{{ missing|default('no') }}|{{ false|default('no') }}|"
+            "{{ missing|default('no') }}|{{ false|default('no', false) }}|"
             "{{ false|default('no', true) }}|{{ given|default('no') }}"
         )
         assert tmpl.render(given='yes') == 'no|False|no|yes'

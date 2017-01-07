@@ -121,6 +121,18 @@ class TestLiquidFilter():
         assert_equal("07/05/2006", date(1152098955, "%m/%d/%Y"))
         assert_equal("07/05/2006", date("1152098955", "%m/%d/%Y"))
 
+    def test_default(self, env):
+        """
+        Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L508
+        """
+        default = FILTERS['default']
+        assert_equal("foo", default("foo", "bar"))
+        assert_equal("bar", default(None, "bar"))
+        assert_equal("bar", default("", "bar"))
+        assert_equal("bar", default(False, "bar"))
+        assert_equal("bar", default([], "bar"))
+        assert_equal("bar", default({}, "bar"))
+
     def test_divided_by(self, env):
         """
         Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L430

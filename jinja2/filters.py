@@ -319,7 +319,7 @@ def do_sort_natural(environment, value, attribute=None, reverse=False,
                    case_sensitive=case_sensitive)
 
 
-def do_default(value, default_value=u'', boolean=False):
+def do_default(value, default_value=u'', boolean=True):
     """If the value is undefined it will return the passed default value,
     otherwise the value of the variable:
 
