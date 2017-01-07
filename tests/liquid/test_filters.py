@@ -412,3 +412,12 @@ class TestLiquidFilter():
         assert strip_html("<div\nclass='multiline'>test</div>") == 'test'
         assert strip_html("<!-- foo bar \n test -->test") == 'test'
         assert strip_html(None) == ''
+
+    def test_strip_newlines(self, env):
+        """
+        Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L384
+        """
+        tmpl = env.from_string("{{ source | strip_newlines }}")
+        assert tmpl.render(source="a\nb\nc") == 'abc'
+        tmpl = env.from_string("{{ source | strip_newlines }}")
+        assert tmpl.render(source="a\r\nb\nc") == 'abc'

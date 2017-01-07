@@ -225,3 +225,11 @@ def do_strip(s):
     https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L92
     """
     return str(s).strip()
+
+
+def do_strip_newlines(s):
+    """
+    Removes any newline characters (line breaks) from a string.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L110
+    """
+    return s.replace('\r\n', '').replace('\n', '')
