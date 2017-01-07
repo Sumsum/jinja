@@ -336,7 +336,7 @@ class TestFilter(object):
         tmpl = env.from_string('{{ 2.7|round }}|{{ 2.1|round }}|'
                                "{{ 2.1234|round(3, 'floor') }}|"
                                "{{ 2.1|round(0, 'ceil') }}")
-        assert tmpl.render() == '3.0|2.0|2.123|3.0', tmpl.render()
+        assert tmpl.render() == '3|2|2.123|3', tmpl.render()
 
     def test_round_negative(self, env):
         tmpl = env.from_string('{{ 21.3|round(-1)}}|'
@@ -356,12 +356,12 @@ class TestFilter(object):
 
     def test_sort1(self, env):
         tmpl = env.from_string(
-            '{{ [2, 3, 1]|sort }}|{{ [2, 3, 1]|sort(true) }}')
+            '{{ [2, 3, 1]|sort }}|{{ [2, 3, 1]|sort(reverse=true) }}')
         assert tmpl.render() == '[1, 2, 3]|[3, 2, 1]'
 
     def test_sort2(self, env):
         tmpl = env.from_string('{{ "".join(["c", "A", "b", "D"]|sort) }}')
-        assert tmpl.render() == 'AbcD'
+        assert tmpl.render() == 'ADbc'
 
     def test_sort3(self, env):
         tmpl = env.from_string('''{{ ['foo', 'Bar', 'blah']|sort }}''')

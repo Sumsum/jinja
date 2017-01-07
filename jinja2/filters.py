@@ -8,6 +8,7 @@
     :copyright: (c) 2010 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
+import collections
 import re
 import math
 
@@ -19,12 +20,16 @@ from jinja2.utils import Markup, escape, pformat, urlize, soft_unicode, \
 from jinja2.runtime import Undefined
 from jinja2.exceptions import FilterArgumentError
 from jinja2._compat import imap, string_types, text_type, iteritems
+from jinja2.liquid.datastructures import List
 from jinja2.liquid.filters import do_abs, do_append, do_ceil, do_divided_by, \
-    do_modulo, do_compact, do_map
+    do_modulo, do_compact, do_map, do_escape, do_escape_once, do_floor, \
+    do_lstrip, do_rstrip, do_minus, do_newline_to_br, do_plus, do_prepend, \
+    to_number, do_len, do_split, do_strip
 
 
 _word_re = re.compile(r'\w+', re.UNICODE)
 _word_beginning_split_re = re.compile(r'([-\s\(\{\[\<]+)', re.UNICODE)
+_nono_tags_re = re.compile(r'<(script|style).*?</\1>')
 
 
 def contextfilter(f):
@@ -130,6 +135,34 @@ def do_replace(eval_ctx, s, old, new, count=None):
     return s.replace(soft_unicode(old), soft_unicode(new), count)
 
 
+@evalcontextfilter
+def do_replace_first(eval_ctx, s, old, new):
+    """
+    Replaces only the first occurrence of the first argument in a string with
+    the second argument.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L208
+    """
+    return do_replace(eval_ctx, s, old, new, 1)
+
+
+@evalcontextfilter
+def do_remove(eval_ctx, s, old):
+    """
+    Removes every occurrence of the specified substring from a string.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L213
+    """
+    return do_replace(eval_ctx, s, old, '')
+
+
+@evalcontextfilter
+def do_remove_first(eval_ctx, s, old):
+    """
+    Removes only the first occurrence of the specified substring from a string.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L218
+    """
+    return do_replace(eval_ctx, s, old, '', 1)
+
+
 def do_upper(s):
     """Convert a value to uppercase."""
     return soft_unicode(s).upper()
@@ -137,6 +170,8 @@ def do_upper(s):
 
 def do_lower(s):
     """Convert a value to lowercase."""
+    if s is None:
+        return ''
     return soft_unicode(s).lower()
 
 
@@ -227,8 +262,8 @@ def do_dictsort(value, case_sensitive=False, by='key'):
 
 
 @environmentfilter
-def do_sort(environment, value, reverse=False, case_sensitive=False,
-            attribute=None):
+def do_sort(environment, value, attribute=None, reverse=False,
+            case_sensitive=True):
     """Sort an iterable.  Per default it sorts ascending, if you pass it
     true as first argument it will reverse the sorting.
 
@@ -254,6 +289,9 @@ def do_sort(environment, value, reverse=False, case_sensitive=False,
     .. versionchanged:: 2.6
        The `attribute` parameter was added.
     """
+    from jinja2.environment import Environment
+    if not isinstance(value, (collections.Iterable, Environment)):
+        return value
     if not case_sensitive:
         def sort_func(item):
             if isinstance(item, string_types):
@@ -267,6 +305,13 @@ def do_sort(environment, value, reverse=False, case_sensitive=False,
         def sort_func(item, processor=sort_func or (lambda x: x)):
             return processor(getter(item))
     return sorted(value, key=sort_func, reverse=reverse)
+
+
+@environmentfilter
+def do_sort_natural(environment, value, attribute=None, reverse=False,
+                    case_sensitive=False):
+    return do_sort(environment, value, attribute=attribute, reverse=reverse,
+                   case_sensitive=case_sensitive)
 
 
 def do_default(value, default_value=u'', boolean=False):
@@ -325,13 +370,13 @@ def do_join(eval_ctx, value, d=u' ', attribute=None):
     # if any of the items has.  If yes we do a coercion to Markup
     if not hasattr(d, '__html__'):
         value = list(value)
-        do_escape = False
+        use_escape = False
         for idx, item in enumerate(value):
             if hasattr(item, '__html__'):
-                do_escape = True
+                use_escape = True
             else:
                 value[idx] = text_type(item)
-        if do_escape:
+        if use_escape:
             d = escape(d)
         else:
             d = text_type(d)
@@ -578,13 +623,29 @@ def do_trim(value):
 def do_striptags(value):
     """Strip SGML/XML tags and replace adjacent whitespace by one space.
     """
+    if value is None:
+        return ''
     if hasattr(value, '__html__'):
         value = value.__html__()
+    value = _nono_tags_re.sub('', str(value))
     return Markup(text_type(value)).striptags()
 
 
 def do_slice(value, slices, fill_with=None):
-    """Slice an iterator and return a list of lists containing
+    """
+    This function works in two different ways to keep compatibility with both
+    jinja and liquid. For jinja the first argument is meant to be an iterable
+    such as a list and for liquid the function is for string manipulation.
+    In waiting for a better solution (such as making it two different filters)
+    we simply type check and proceed.
+
+    If the first argument is a string or `None`:
+    Returns a substring of 1 character beginning at the index specified by the
+    argument passed in. An optional second argument specifies the length of the
+    substring to be returned.
+
+    if the first argument is not a string:
+    Slice an iterator and return a list of lists containing
     those items. Useful if you want to create a div containing
     three ul tags that represent columns:
 
@@ -603,11 +664,24 @@ def do_slice(value, slices, fill_with=None):
     If you pass it a second argument it's used to fill missing
     values on the last iteration.
     """
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        index = to_number(slices)
+        if index < 0:
+            index = len(value) + index
+        if fill_with is None:
+            offset = 1
+        else:
+            offset = to_number(fill_with)
+        return value[index:index + offset]
+
     seq = list(value)
     length = len(seq)
     items_per_slice = length // slices
     slices_with_extra = length % slices
     offset = 0
+    res = List()
     for slice_number in range(slices):
         start = offset + slice_number * items_per_slice
         if slice_number < slices_with_extra:
@@ -616,7 +690,8 @@ def do_slice(value, slices, fill_with=None):
         tmp = seq[start:end]
         if fill_with is not None and slice_number >= slices_with_extra:
             tmp.append(fill_with)
-        yield tmp
+        res.append(tmp)
+    return res
 
 
 def do_batch(value, linecount, fill_with=None):
@@ -676,12 +751,17 @@ def do_round(value, precision=0, method='common'):
         {{ 42.55|round|int }}
             -> 43
     """
+    value = to_number(value)
     if method not in ('common', 'ceil', 'floor'):
         raise FilterArgumentError('method must be common, ceil or floor')
     if method == 'common':
-        return round(value, precision)
-    func = getattr(math, method)
-    return func(value * (10 ** precision)) / (10 ** precision)
+        res = round(value, precision)
+    else:
+        func = getattr(math, method)
+        res = func(value * (10 ** precision)) / (10 ** precision)
+    if precision == 0:
+        return int(res)
+    return res
 
 
 _GroupTuple = namedtuple('_GroupTuple', ['grouper', 'list'])
@@ -777,14 +857,14 @@ def do_reverse(value):
     if isinstance(value, string_types):
         return value[::-1]
     try:
-        return reversed(value)
+        rv = reversed(value)
     except TypeError:
         try:
             rv = list(value)
             rv.reverse()
-            return rv
         except TypeError:
             raise FilterArgumentError('argument must be iterable')
+    return List(rv)
 
 
 @environmentfilter
@@ -933,16 +1013,19 @@ FILTERS = {
     'ceil': do_ceil,
     'center': do_center,
     'compact': do_compact,
-    'count': len,
+    'count': do_len,
     'd': do_default,
     'default': do_default,
     'dictsort': do_dictsort,
     'divided_by': do_divided_by,
-    'e': escape,
-    'escape': escape,
+    'downcase': do_lower,
+    'e': do_escape,
+    'escape': do_escape,
+    'escape_once': do_escape_once,
     'filesizeformat': do_filesizeformat,
     'first': do_first,
     'float': do_float,
+    'floor': do_floor,
     'forceescape': do_forceescape,
     'format': do_format,
     'groupby': do_groupby,
@@ -950,25 +1033,39 @@ FILTERS = {
     'int': do_int,
     'join': do_join,
     'last': do_last,
-    'length': len,
+    'length': do_len,
     'list': do_list,
     'lower': do_lower,
+    'lstrip': do_lstrip,
     'map': do_map,
+    'minus': do_minus,
     'modulo': do_modulo,
+    'newline_to_br': do_newline_to_br,
+    'plus': do_plus,
     'pprint': do_pprint,
+    'prepend': do_prepend,
     'random': do_random,
     'reject': do_reject,
     'rejectattr': do_rejectattr,
+    'remove': do_remove,
+    'remove_first': do_remove_first,
     'replace': do_replace,
+    'replace_first': do_replace_first,
     'reverse': do_reverse,
     'round': do_round,
+    'rstrip': do_rstrip,
     'safe': do_mark_safe,
     'select': do_select,
     'selectattr': do_selectattr,
+    'size': do_len,
     'slice': do_slice,
     'sort': do_sort,
+    'sort_natural': do_sort_natural,
+    'split': do_split,
     'string': soft_unicode,
+    'strip': do_strip,
     'striptags': do_striptags,
+    'strip_html': do_striptags,
     'sum': do_sum,
     'title': do_title,
     'trim': do_trim,

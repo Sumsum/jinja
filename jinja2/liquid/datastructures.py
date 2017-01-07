@@ -21,3 +21,10 @@ class List(UserList):
             return self.data[0]
         except IndexError:
             return None
+
+    @property
+    def last(self):
+        try:
+            return self.data[-1]
+        except IndexError:
+            return None
