@@ -1,6 +1,7 @@
 import math
 from .datastructures import List
 from markupsafe import escape
+from urllib.parse import unquote_plus
 
 
 def to_number(value):
@@ -295,3 +296,13 @@ def do_uniq(seq, attr=None):
                 res.append(e)
                 values.append(value)
     return res
+
+
+def do_urldecode(s):
+    """
+    Decodes a string that has been encoded as a URL or by url_encode.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L48
+    """
+    if s is None:
+        return None
+    return unquote_plus(s)

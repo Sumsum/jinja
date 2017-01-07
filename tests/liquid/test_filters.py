@@ -497,3 +497,21 @@ class TestLiquidFilter():
         upcase = FILTERS['upcase']
         assert_equal('TESTING', upcase("Testing"))
         assert_equal('', upcase(None))
+
+    def test_url_decode(self, env):
+        """
+        Tests taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L144
+        """
+        url_decode = FILTERS['url_decode']
+        assert_equal('foo bar', url_decode('foo+bar'))
+        assert_equal('foo bar', url_decode('foo%20bar'))
+        assert_equal('foo+1@example.com', url_decode('foo%2B1%40example.com'))
+        assert_equal(None, url_decode(None))
+
+    def test_url_encode(self, env):
+        """
+        Tests taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L139
+        """
+        url_encode = FILTERS['url_encode']
+        assert_equal('foo%2B1%40example.com', url_encode('foo+1@example.com'))
+        assert_equal(None, url_encode(None))
