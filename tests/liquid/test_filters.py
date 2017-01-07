@@ -1,3 +1,5 @@
+import datetime
+import dateutil.parser
 import pytest
 from jinja2.filters import FILTERS
 from jinja2.nodes import EvalContext
@@ -88,6 +90,36 @@ class TestLiquidFilter():
         pytest.raises(ZeroDivisionError)
         tmpl = env.from_string("{{ price | ceil }}")
         assert tmpl.render(price='4.6') == '5'
+
+    def test_date(self, env):
+        """
+        Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L311
+        """
+        date = FILTERS['date']
+        assert_equal('May', date(dateutil.parser.parse("2006-05-05 10:00:00"), "%B"))
+        assert_equal('June', date(dateutil.parser.parse("2006-06-05 10:00:00"), "%B"))
+        assert_equal('July', date(dateutil.parser.parse("2006-07-05 10:00:00"), "%B"))
+
+        assert_equal('May', date("2006-05-05 10:00:00", "%B"))
+        assert_equal('June', date("2006-06-05 10:00:00", "%B"))
+        assert_equal('July', date("2006-07-05 10:00:00", "%B"))
+
+        assert_equal('2006-07-05 10:00:00', date("2006-07-05 10:00:00", ""))
+        assert_equal('2006-07-05 10:00:00', date("2006-07-05 10:00:00", None))
+
+        assert_equal('07/05/2006', date("2006-07-05 10:00:00", "%m/%d/%Y"))
+
+        assert_equal("07/16/2004", date("Fri Jul 16 01:00:00 2004", "%m/%d/%Y"))
+        assert_equal(str(datetime.date.today().year), date('now', '%Y'))
+        assert_equal(str(datetime.date.today().year), date('today', '%Y'))
+        assert_equal(str(datetime.date.today().year), date('Today', '%Y'))
+
+        assert_equal(None, date(None, "%B"))
+
+        assert_equal('', date('', "%B"))
+
+        assert_equal("07/05/2006", date(1152098955, "%m/%d/%Y"))
+        assert_equal("07/05/2006", date("1152098955", "%m/%d/%Y"))
 
     def test_divided_by(self, env):
         """

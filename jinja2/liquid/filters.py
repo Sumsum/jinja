@@ -1,3 +1,5 @@
+import datetime
+import dateutil.parser
 import math
 from .datastructures import List
 from markupsafe import escape
@@ -39,6 +41,38 @@ def do_ceil(value):
     https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L344
     """
     return math.ceil(to_number(value))
+
+
+def do_date(value, fmt):
+    """
+    Converts a timestamp into another date format. The format for this syntax
+    is the same as strftime.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L275
+    """
+    if value is None:
+        return None
+    if not value:
+        return ''
+    if not fmt:
+        return value
+    if isinstance(value, int):
+        d = datetime.datetime.fromtimestamp(value)
+    elif isinstance(value, (datetime.date, datetime.datetime)):
+        d = value
+    else:
+        value = str(value).lower()
+        if value == 'now':
+            d = datetime.datetime.now()
+        elif value == 'today':
+            d = datetime.date.today()
+        else:
+            try:
+                value = int(value)
+            except ValueError:
+                d = dateutil.parser.parse(value)
+            else:
+                d = datetime.datetime.fromtimestamp(value)
+    return d.strftime(fmt)
 
 
 def do_divided_by(value, divide_by):
