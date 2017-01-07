@@ -461,3 +461,15 @@ class TestLiquidFilter():
         assert_equal('1234567890', truncate('1234567890'))
         assert_equal("测试...", truncate("测试测试测试测试测试测试测试测试", 5))
         assert_equal('12341', truncate("1234567890123456", 5, 1))
+
+    def test_truncate_words(self, env):
+        """
+        Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L151
+        """
+        truncatewords = FILTERS['truncatewords']
+        assert_equal('one two three', truncatewords('one two three', 4))
+        assert_equal('one two...', truncatewords('one two three', 2))
+        assert_equal('one two three', truncatewords('one two three'))
+        assert_equal('Two small (13&#8221; x 5.5&#8221; x 10&#8221; high) baskets fit inside one large basket (13&#8221;...', truncatewords('Two small (13&#8221; x 5.5&#8221; x 10&#8221; high) baskets fit inside one large basket (13&#8221; x 16&#8221; x 10.5&#8221; high) with cover.', 15))
+        assert_equal("测试测试测试测试", truncatewords('测试测试测试测试', 5))
+        assert_equal('one two1', truncatewords("one two three", 2, 1))

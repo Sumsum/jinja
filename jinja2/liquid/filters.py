@@ -249,3 +249,22 @@ def do_times(a, b):
     except ValueError:
         b = 0
     return round(a * b, 10)
+
+
+def do_truncatewords(s, length=15, end='...'):
+    """
+    Truncates a string after a certain number of words. Takes an optional
+    argument of what should be used to notify that the string has been
+    truncated, defaulting to ellipsis (...)
+    Newlines in the string will be stripped.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L74
+    """
+    if s is None:
+        return s
+    s = str(s)
+    length = int(length)
+    end = str(end)
+    words = s.split()
+    if len(words) > length:
+        return ' '.join(words[:length]) + end
+    return s
