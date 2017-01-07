@@ -13,7 +13,7 @@ import sys
 from itertools import chain
 from jinja2.nodes import EvalContext, _context_function_types
 from jinja2.utils import Markup, soft_unicode, escape, missing, concat, \
-     internalcode, object_type_repr
+     internalcode, object_type_repr, evalcontextfunction
 from jinja2.exceptions import UndefinedError, TemplateRuntimeError, \
      TemplateNotFound
 from jinja2._compat import imap, text_type, iteritems, \
@@ -24,7 +24,7 @@ from jinja2._compat import imap, text_type, iteritems, \
 __all__ = ['LoopContext', 'TemplateReference', 'Macro', 'Markup',
            'TemplateRuntimeError', 'missing', 'concat', 'escape',
            'markup_join', 'unicode_join', 'to_string', 'identity',
-           'TemplateNotFound', 'make_logging_undefined']
+           'TemplateNotFound']
 
 #: the name of the function that is used to convert something into
 #: a string.  We can just use the text type here.
@@ -67,8 +67,8 @@ def new_context(environment, template_name, blocks, vars=None,
         if shared:
             parent = dict(parent)
         for key, value in iteritems(locals):
-            if key[:2] == 'l_' and value is not missing:
-                parent[key[2:]] = value
+            if value is not missing:
+                parent[key] = value
     return environment.context_class(environment, parent, template_name,
                                      blocks)
 
@@ -150,11 +150,20 @@ class Context(object):
         """Looks up a variable like `__getitem__` or `get` but returns an
         :class:`Undefined` object with the name of the name looked up.
         """
+        rv = self.resolve_or_missing(key)
+        if rv is missing:
+            return self.environment.undefined(name=key)
+        return rv
+
+    def resolve_or_missing(self, key):
+        """Resolves a variable like :meth:`resolve` but returns the
+        special `missing` value if it cannot be found.
+        """
         if key in self.vars:
             return self.vars[key]
         if key in self.parent:
             return self.parent[key]
-        return self.environment.undefined(name=key)
+        return missing
 
     def get_exported(self):
         """Get a new dict with the exported variables."""
@@ -232,8 +241,8 @@ class Context(object):
         """Lookup a variable or raise `KeyError` if the variable is
         undefined.
         """
-        item = self.resolve(key)
-        if isinstance(item, Undefined):
+        item = self.resolve_or_missing(key)
+        if item is missing:
             raise KeyError(key)
         return item
 
@@ -390,20 +399,47 @@ class LoopContextIterator(object):
 class Macro(object):
     """Wraps a macro function."""
 
-    def __init__(self, environment, func, name, arguments, defaults,
-                 catch_kwargs, catch_varargs, caller):
+    def __init__(self, environment, func, name, arguments,
+                 catch_kwargs, catch_varargs, caller,
+                 default_autoescape=None):
         self._environment = environment
         self._func = func
         self._argument_count = len(arguments)
         self.name = name
         self.arguments = arguments
-        self.defaults = defaults
         self.catch_kwargs = catch_kwargs
         self.catch_varargs = catch_varargs
         self.caller = caller
+        if default_autoescape is None:
+            default_autoescape = environment.autoescape
+        self._default_autoescape = default_autoescape
 
     @internalcode
+    @evalcontextfunction
     def __call__(self, *args, **kwargs):
+        # This requires a bit of explanation,  In the past we used to
+        # decide largely based on compile-time information if a macro is
+        # safe or unsafe.  While there was a volatile mode it was largely
+        # unused for deciding on escaping.  This turns out to be
+        # problemtic for macros because if a macro is safe or not not so
+        # much depends on the escape mode when it was defined but when it
+        # was used.
+        #
+        # Because however we export macros from the module system and
+        # there are historic callers that do not pass an eval context (and
+        # will continue to not pass one), we need to perform an instance
+        # check here.
+        #
+        # This is considered safe because an eval context is not a valid
+        # argument to callables otherwise anwyays.  Worst case here is
+        # that if no eval context is passed we fall back to the compile
+        # time autoescape flag.
+        if args and isinstance(args[0], EvalContext):
+            autoescape = args[0].autoescape
+            args = args[1:]
+        else:
+            autoescape = self._default_autoescape
+
         # try to consume the positional arguments
         arguments = list(args[:self._argument_count])
         off = len(arguments)
@@ -416,11 +452,7 @@ class Macro(object):
                 try:
                     value = kwargs.pop(name)
                 except KeyError:
-                    try:
-                        value = self.defaults[idx - self._argument_count + off]
-                    except IndexError:
-                        value = self._environment.undefined(
-                            'parameter %r was not provided' % name, name=name)
+                    value = missing
                 arguments.append(value)
 
         # it's important that the order of these arguments does not change
@@ -442,7 +474,11 @@ class Macro(object):
         elif len(args) > self._argument_count:
             raise TypeError('macro %r takes not more than %d argument(s)' %
                             (self.name, len(self.arguments)))
-        return self._func(*arguments)
+
+        rv = self._func(*arguments)
+        if autoescape:
+            rv = Markup(rv)
+        return rv
 
     def __repr__(self):
         return '<%s %s>' % (

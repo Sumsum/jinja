@@ -17,7 +17,7 @@ from jinja2._compat import text_type
 
 
 @pytest.mark.regression
-class TestCorner():
+class TestCorner(object):
 
     def test_assigned_scoping(self, env):
         t = env.from_string('''
@@ -78,7 +78,7 @@ class TestCorner():
 
 
 @pytest.mark.regression
-class TestBug():
+class TestBug(object):
 
     def test_keyword_folding(self, env):
         env = Environment()
@@ -291,3 +291,64 @@ class TestBug():
         }))
         t = env.from_string('{% extends "main" %}{% set x %}42{% endset %}')
         assert t.render() == '[42]'
+
+    def test_nested_for_else(self, env):
+        tmpl = env.from_string('{% for x in y %}{{ loop.index0 }}{% else %}'
+                               '{% for i in range(3) %}{{ i }}{% endfor %}'
+                               '{% endfor %}')
+        assert tmpl.render() == '012'
+
+    def test_macro_var_bug(self, env):
+        tmpl = env.from_string('''
+        {% set i = 1 %}
+        {% macro test() %}
+            {% for i in range(0, 10) %}{{ i }}{% endfor %}
+        {% endmacro %}{{ test() }}
+        ''')
+        assert tmpl.render().strip() == '0123456789'
+
+    def test_macro_var_bug_advanced(self, env):
+        tmpl = env.from_string('''
+        {% macro outer() %}
+            {% set i = 1 %}
+            {% macro test() %}
+                {% for i in range(0, 10) %}{{ i }}{% endfor %}
+            {% endmacro %}{{ test() }}
+        {% endmacro %}{{ outer() }}
+        ''')
+        assert tmpl.render().strip() == '0123456789'
+
+    def test_callable_defaults(self):
+        env = Environment()
+        env.globals['get_int'] = lambda: 42
+        t = env.from_string('''
+        {% macro test(a, b, c=get_int()) -%}
+             {{ a + b + c }}
+        {%- endmacro %}
+        {{ test(1, 2) }}|{{ test(1, 2, 3) }}
+        ''')
+        assert t.render().strip() == '45|6'
+
+    def test_macro_escaping(self):
+        env = Environment(
+            autoescape=lambda x: False, extensions=['jinja2.ext.autoescape'])
+        template = "{% macro m() %}<html>{% endmacro %}"
+        template += "{% autoescape true %}{{ m() }}{% endautoescape %}"
+        assert env.from_string(template).render()
+
+    def test_macro_scoping(self, env):
+        tmpl = env.from_string('''
+        {% set n=[1,2,3,4,5] %}
+        {% for n in [[1,2,3], [3,4,5], [5,6,7]] %}
+
+        {% macro x(l) %}
+          {{ l.pop() }}
+          {% if l %}{{ x(l) }}{% endif %}
+        {% endmacro %}
+
+        {{ x(n) }}
+
+        {% endfor %}
+        ''')
+        assert list(map(int, tmpl.render().split())) == \
+            [3, 2, 1, 5, 4, 3, 7, 6, 5]

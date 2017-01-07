@@ -20,7 +20,7 @@ def env_trim():
 
 @pytest.mark.core_tags
 @pytest.mark.for_loop
-class TestForLoop():
+class TestForLoop(object):
 
     def test_simple(self, env):
         tmpl = env.from_string('{% for item in seq %}{{ item }}{% endfor %}')
@@ -30,6 +30,11 @@ class TestForLoop():
         tmpl = env.from_string(
             '{% for item in seq %}XXX{% else %}...{% endfor %}')
         assert tmpl.render() == '...'
+
+    def test_else_scoping_item(self, env):
+        tmpl = env.from_string(
+            '{% for item in [] %}{% else %}{{ item }}{% endfor %}')
+        assert tmpl.render(item=42) == '42'
 
     def test_empty_blocks(self, env):
         tmpl = env.from_string('<{% for item in seq %}{% else %}{% endfor %}>')
@@ -197,7 +202,7 @@ class TestForLoop():
 
 @pytest.mark.core_tags
 @pytest.mark.if_condition
-class TestIfCondition():
+class TestIfCondition(object):
 
     def test_simple(self, env):
         tmpl = env.from_string('''{% if true %}...{% endif %}''')
@@ -232,7 +237,7 @@ class TestIfCondition():
 
 @pytest.mark.core_tags
 @pytest.mark.macros
-class TestMacros():
+class TestMacros(object):
     def test_simple(self, env_trim):
         tmpl = env_trim.from_string('''\
 {% macro say_hello(name) %}Hello {{ name }}!{% endmacro %}
@@ -303,13 +308,11 @@ class TestMacros():
             '{% macro bar() %}{{ varargs }}{{ kwargs }}{% endmacro %}'
             '{% macro baz() %}{{ caller() }}{% endmacro %}')
         assert tmpl.module.foo.arguments == ('a', 'b')
-        assert tmpl.module.foo.defaults == ()
         assert tmpl.module.foo.name == 'foo'
         assert not tmpl.module.foo.caller
         assert not tmpl.module.foo.catch_kwargs
         assert not tmpl.module.foo.catch_varargs
         assert tmpl.module.bar.arguments == ()
-        assert tmpl.module.bar.defaults == ()
         assert not tmpl.module.bar.caller
         assert tmpl.module.bar.catch_kwargs
         assert tmpl.module.bar.catch_varargs
@@ -321,10 +324,20 @@ class TestMacros():
                                     '{{ foo(5) }}')
         assert tmpl.render() == '5|4|3|2|1'
 
+    def test_macro_defaults_self_ref(self, env):
+        tmpl = env.from_string('''
+            {%- set x = 42 %}
+            {%- macro m(a, b=x, x=23) %}{{ a }}|{{ b }}|{{ x }}{% endmacro -%}
+        ''')
+        assert tmpl.module.m(1) == '1||23'
+        assert tmpl.module.m(1, 2) == '1|2|23'
+        assert tmpl.module.m(1, 2, 3) == '1|2|3'
+        assert tmpl.module.m(1, x=7) == '1|7|7'
+
 
 @pytest.mark.core_tags
 @pytest.mark.set
-class TestSet():
+class TestSet(object):
 
     def test_normal(self, env_trim):
         tmpl = env_trim.from_string('{% set foo = 1 %}{{ foo }}')
@@ -335,3 +348,9 @@ class TestSet():
         tmpl = env_trim.from_string('{% set foo %}42{% endset %}{{ foo }}')
         assert tmpl.render() == '42'
         assert tmpl.module.foo == u'42'
+
+    def test_block_escaping(self):
+        env = Environment(autoescape=True)
+        tmpl = env.from_string('{% set foo %}<em>{{ test }}</em>'
+                               '{% endset %}foo: {{ foo }}')
+        assert tmpl.render(test='<unsafe>') == 'foo: <em>&lt;unsafe&gt;</em>'

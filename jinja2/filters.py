@@ -16,7 +16,7 @@ from random import choice
 from itertools import groupby
 from collections import namedtuple
 from jinja2.utils import Markup, escape, pformat, urlize, soft_unicode, \
-    unicode_urlencode
+    unicode_urlencode, htmlsafe_json_dumps
 from jinja2.runtime import Undefined
 from jinja2.exceptions import FilterArgumentError
 from jinja2._compat import imap, string_types, text_type, iteritems
@@ -513,31 +513,35 @@ def do_indent(s, width=4, indentfirst=False):
     return rv
 
 
-def do_truncate(s, length=255, killwords=False, end='...'):
+def do_truncate(s, length=255, killwords=False, end='...', leeway=5):
     """Return a truncated copy of the string. The length is specified
     with the first parameter which defaults to ``255``. If the second
     parameter is ``true`` the filter will cut the text at length. Otherwise
     it will discard the last word. If the text was in fact
     truncated it will append an ellipsis sign (``"..."``). If you want a
     different ellipsis sign than ``"..."`` you can specify it using the
-    third parameter.
+    third parameter. Strings that only exceed the length by the tolerance
+    margin given in the fourth parameter will not be truncated.
 
     .. sourcecode:: jinja
 
-        {{ "foo bar baz"|truncate(9) }}
-            -> "foo ..."
-        {{ "foo bar baz"|truncate(9, True) }}
+        {{ "foo bar baz qux"|truncate(9) }}
+            -> "foo..."
+        {{ "foo bar baz qux"|truncate(9, True) }}
             -> "foo ba..."
+        {{ "foo bar baz qux"|truncate(11) }}
+            -> "foo bar baz qux"
+        {{ "foo bar baz qux"|truncate(11, False, '...', 0) }}
+            -> "foo bar..."
 
     """
-    if len(s) <= length:
+    assert length >= len(end), 'expected length >= %s, got %s' % (len(end), length)
+    assert leeway >= 0, 'expected leeway >= 0, got %s' % leeway
+    if len(s) <= length + leeway:
         return s
-    elif killwords:
+    if killwords:
         return s[:length - len(end)] + end
-
     result = s[:length - len(end)].rsplit(' ', 1)[0]
-    if len(result) < length:
-        result += ' '
     return result + end
 
 
@@ -807,7 +811,8 @@ def do_groupby(environment, value, attribute):
        attribute of another attribute.
     """
     expr = make_attrgetter(environment, attribute)
-    return [_GroupTuple(key, list(values)) for key, values in groupby(sorted(value, key=expr), expr)]
+    return [_GroupTuple(key, list(values)) for key, values
+            in groupby(sorted(value, key=expr), expr)]
 
 
 @environmentfilter
@@ -969,6 +974,65 @@ def do_rejectattr(*args, **kwargs):
     return select_or_reject(args, kwargs, lambda x: not x, True)
 
 
+@evalcontextfilter
+def do_tojson(eval_ctx, value, indent=None):
+    """Dumps a structure to JSON so that it's safe to use in ``<script>``
+    tags.  It accepts the same arguments and returns a JSON string.  Note that
+    this is available in templates through the ``|tojson`` filter which will
+    also mark the result as safe.  Due to how this function escapes certain
+    characters this is safe even if used outside of ``<script>`` tags.
+
+    The following characters are escaped in strings:
+
+    -   ``<``
+    -   ``>``
+    -   ``&``
+    -   ``'``
+
+    This makes it safe to embed such strings in any place in HTML with the
+    notable exception of double quoted attributes.  In that case single
+    quote your attributes or HTML escape it in addition.
+
+    The indent parameter can be used to enable pretty printing.  Set it to
+    the number of spaces that the structures should be indented with.
+
+    Note that this filter is for use in HTML contexts only.
+
+    .. versionadded:: 2.9
+    """
+    policies = eval_ctx.environment.policies
+    dumper = policies['json.dumps_function']
+    options = policies['json.dumps_kwargs']
+    if indent is not None:
+        options = dict(options)
+        options['indent'] = indent
+    return htmlsafe_json_dumps(value, dumper=dumper, **options)
+
+
+def prepare_map(args, kwargs):
+    context = args[0]
+    seq = args[1]
+
+    if len(args) == 2 and 'attribute' in kwargs:
+        attribute = kwargs.pop('attribute')
+        if kwargs:
+            raise FilterArgumentError('Unexpected keyword argument %r' %
+                next(iter(kwargs)))
+        func = make_attrgetter(context.environment, attribute)
+    else:
+        try:
+            name = args[2]
+            args = args[3:]
+        except LookupError:
+            raise FilterArgumentError('map requires a filter argument')
+
+        def func(item):
+            return context.environment.call_filter(name, item, args, kwargs,
+                                                   context=context)
+
+    return seq, func
+
+
 def prepare_select_or_reject(args, kwargs, modfunc, lookup_attr):
     context = args[0]
     seq = args[1]
@@ -1003,6 +1067,7 @@ def select_or_reject(args, kwargs, modfunc, lookup_attr):
         for item in seq:
             if func(item):
                 yield item
+
 
 FILTERS = {
     'abs': do_abs,
@@ -1068,6 +1133,7 @@ FILTERS = {
     'strip_html': do_striptags,
     'sum': do_sum,
     'title': do_title,
+    'tojson': do_tojson,
     'trim': do_trim,
     'truncate': do_truncate,
     'upper': do_upper,

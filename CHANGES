@@ -18,6 +18,16 @@ Version 2.9
 - Restored behavior of Cycler for Python 3 users.
 - Subtraction now follows the same behavior as other operators on undefined
   values.
+- `map` and friends will now give better error messages if you forgot to
+  quote the parameter.
+- Depend on MarkupSafe 0.23 or higher.
+- Improved the `truncate` filter to support better truncation in case
+  the string is barely truncated at all.
+- Change the logic for macro autoescaping to be based on the runtime
+  autoescaping information at call time instead of macro define time.
+- Ported a modified version of the `tojson` filter from Flask to Jinja2
+  and hooked it up with the new policy framework.
+- Block sets are now marked `safe` by default.
 
 Version 2.8.2
 -------------

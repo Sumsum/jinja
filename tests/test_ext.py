@@ -160,7 +160,7 @@ class StreamFilterExtension(Extension):
 
 
 @pytest.mark.ext
-class TestExtensions():
+class TestExtensions(object):
 
     def test_extend_late(self):
         env = Environment()
@@ -246,7 +246,7 @@ class TestExtensions():
 
 
 @pytest.mark.ext
-class TestInternationalization():
+class TestInternationalization(object):
 
     def test_trans(self):
         tmpl = i18n_env.get_template('child.html')
@@ -315,7 +315,7 @@ class TestInternationalization():
 
 
 @pytest.mark.ext
-class TestNewstyleInternationalization():
+class TestNewstyleInternationalization(object):
 
     def test_trans(self):
         tmpl = newstyle_i18n_env.get_template('child.html')
@@ -355,6 +355,14 @@ class TestNewstyleInternationalization():
         assert t.render(ae=True) == '<strong>Wert: &lt;test&gt;</strong>'
         assert t.render(ae=False) == '<strong>Wert: <test></strong>'
 
+    def test_autoescape_macros(self):
+        env = Environment(autoescape=False, extensions=['jinja2.ext.autoescape'])
+        template = (
+            '{% macro m() %}<html>{% endmacro %}'
+            '{% autoescape true %}{{ m() }}{% endautoescape %}'
+        )
+        assert env.from_string(template).render() == '<html>'
+
     def test_num_used_twice(self):
         tmpl = newstyle_i18n_env.get_template('ngettext_long.html')
         assert tmpl.render(apples=5, LANGUAGE='de') == u'5 Äpfel'
@@ -368,7 +376,7 @@ class TestNewstyleInternationalization():
         # that the generated code does not pass num twice (although that
         # would work) for better performance.  This only works on the
         # newstyle gettext of course
-        assert re.search(r"l_ngettext, u?'\%\(num\)s apple', u?'\%\(num\)s "
+        assert re.search(r"u?'\%\(num\)s apple', u?'\%\(num\)s "
                          r"apples', 3", source) is not None
 
     def test_trans_vars(self):
@@ -389,7 +397,7 @@ class TestNewstyleInternationalization():
 
 
 @pytest.mark.ext
-class TestAutoEscape():
+class TestAutoEscape(object):
 
     def test_scoped_setting(self):
         env = Environment(extensions=['jinja2.ext.autoescape'],
