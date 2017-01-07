@@ -426,5 +426,15 @@ class TestLiquidFilter():
         """
         Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L420
         """
-        tmpl = env.from_string("{{ 3 | times:4 }}")
-        assert tmpl.render() == '12'
+        def assert_template_result(res, s, **ctx):
+            tmpl = env.from_string(s)
+            assert tmpl.render(**ctx) == res
+
+        assert_template_result("12", "{{ 3 | times:4 }}")
+        assert_template_result("0", "{{ 'foo' | times:4 }}")
+        # I have no plans to make such a stupid test work
+        #assert_template_result("6", "{{ '2.1' | times:3 | replace: '.','-' | plus:0}}")
+        assert_template_result("7.25", "{{ 0.0725 | times:100 }}")
+        assert_template_result("-7.25", '{{ "-0.0725" | times:100 }}')
+        assert_template_result("7.25", '{{ "-0.0725" | times: -100 }}')
+        assert_template_result("4", "{{ price | times:2 }}", price='2')

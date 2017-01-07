@@ -240,4 +240,12 @@ def do_times(a, b):
     Multiplies a number by another number.
     https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L318
     """
-    return to_number(a) * to_number(b)
+    try:
+        a = to_number(a)
+    except ValueError:
+        a = 0
+    try:
+        b = to_number(b)
+    except ValueError:
+        b = 0
+    return round(a * b, 10)
