@@ -243,8 +243,8 @@ class TestFilter(object):
 
     def test_truncate_very_short(self, env):
         tmpl = env.from_string(
-            '{{ "foo bar baz"|truncate(9, leeway=5) }}|'
-            '{{ "foo bar baz"|truncate(9, killwords=true, leeway=5) }}'
+            '{{ "foo bar baz"|truncate(9) }}|'
+            '{{ "foo bar baz"|truncate(9, killwords=true) }}'
         )
         out = tmpl.render()
         assert out == 'foo bar baz|foo bar baz', out

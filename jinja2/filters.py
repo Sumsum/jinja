@@ -513,7 +513,7 @@ def do_indent(s, width=4, indentfirst=False):
     return rv
 
 
-def do_truncate(s, length=255, end='...', killwords=True, leeway=0):
+def do_truncate(s, length=255, end='...', killwords=False, leeway=5):
     """Return a truncated copy of the string. The length is specified with the
     first parameter which defaults to ``255``. If the killword parameter is
     ``true`` the filter will cut the text at length. Otherwise it will discard

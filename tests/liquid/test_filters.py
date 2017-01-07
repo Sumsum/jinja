@@ -446,12 +446,18 @@ class TestLiquidFilter():
     def test_truncate(self, env):
         """
         Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L112
+
+        Tests have been changed to adapt to jinja truncate, where there is a
+        default tolerance of 5 characters, that is strings that only exceed the
+        length by the tolerance margin given in the leeway parameter will not
+        be truncated.
         """
 
         truncate = FILTERS['truncate']
-        assert_equal('1234...', truncate('1234567890', 7))
+        assert_equal('1234567890', truncate('1234567890', 7))
+        assert_equal('1234...', truncate('123456789012345678', 7))
         assert_equal('1234567890', truncate('1234567890', 20))
         assert_equal('...', truncate('1234567890', 0))
         assert_equal('1234567890', truncate('1234567890'))
-        assert_equal("测试...", truncate("测试测试测试测试", 5))
-        assert_equal('12341', truncate("1234567890", 5, 1))
+        assert_equal("测试...", truncate("测试测试测试测试测试测试测试测试", 5))
+        assert_equal('12341', truncate("1234567890123456", 5, 1))
