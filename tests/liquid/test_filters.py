@@ -489,3 +489,11 @@ class TestLiquidFilter():
         assert_equal([{"a": 1}, {"a": 3}, {"a": 2}], uniq([{"a": 1}, {"a": 3}, {"a": 1}, {"a": 2}], "a"))
         droptest = DropTest()
         assert_equal([droptest], uniq([droptest, DropTest()], 'test'))
+
+    def test_upcase(self, env):
+        """
+        Tests taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L72
+        """
+        upcase = FILTERS['upcase']
+        assert_equal('TESTING', upcase("Testing"))
+        assert_equal('', upcase(None))

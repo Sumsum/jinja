@@ -166,6 +166,8 @@ def do_remove_first(eval_ctx, s, old):
 
 def do_upper(s):
     """Convert a value to uppercase."""
+    if s is None:
+        return ''
     return soft_unicode(s).upper()
 
 
@@ -1143,6 +1145,7 @@ FILTERS = {
     'truncate': do_truncate,
     'truncatewords': do_truncatewords,
     'uniq': do_uniq,
+    'upcase': do_upper,
     'upper': do_upper,
     'urlencode': do_urlencode,
     'urlize': do_urlize,
