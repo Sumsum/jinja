@@ -22,6 +22,10 @@ class ObjectTest:
         self.a = a
 
 
+def assert_equal(a, b):
+    assert a == b
+
+
 @pytest.mark.liquid_filter
 class TestLiquidFilter():
 
@@ -438,3 +442,16 @@ class TestLiquidFilter():
         assert_template_result("-7.25", '{{ "-0.0725" | times:100 }}')
         assert_template_result("7.25", '{{ "-0.0725" | times: -100 }}')
         assert_template_result("4", "{{ price | times:2 }}", price='2')
+
+    def test_truncate(self, env):
+        """
+        Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L112
+        """
+
+        truncate = FILTERS['truncate']
+        assert_equal('1234...', truncate('1234567890', 7))
+        assert_equal('1234567890', truncate('1234567890', 20))
+        assert_equal('...', truncate('1234567890', 0))
+        assert_equal('1234567890', truncate('1234567890'))
+        assert_equal("测试...", truncate("测试测试测试测试", 5))
+        assert_equal('12341', truncate("1234567890", 5, 1))

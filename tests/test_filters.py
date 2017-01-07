@@ -232,8 +232,8 @@ class TestFilter(object):
 
     def test_truncate(self, env):
         tmpl = env.from_string(
-            '{{ data|truncate(15, true, ">>>") }}|'
-            '{{ data|truncate(15, false, ">>>") }}|'
+            '{{ data|truncate(15, ">>>", true) }}|'
+            '{{ data|truncate(15, ">>>", false) }}|'
             '{{ smalldata|truncate(15) }}'
         )
         out = tmpl.render(data='foobar baz bar' * 1000,
@@ -243,14 +243,14 @@ class TestFilter(object):
 
     def test_truncate_very_short(self, env):
         tmpl = env.from_string(
-            '{{ "foo bar baz"|truncate(9) }}|'
-            '{{ "foo bar baz"|truncate(9, true) }}'
+            '{{ "foo bar baz"|truncate(9, leeway=5) }}|'
+            '{{ "foo bar baz"|truncate(9, killwords=true, leeway=5) }}'
         )
         out = tmpl.render()
         assert out == 'foo bar baz|foo bar baz', out
 
     def test_truncate_end_length(self, env):
-        tmpl = env.from_string('{{ "Joel is a slug"|truncate(7, true) }}')
+        tmpl = env.from_string('{{ "Joel is a slug"|truncate(7, killwords=true) }}')
         out = tmpl.render()
         assert out == 'Joel...', 'Current output: %s' % out
 

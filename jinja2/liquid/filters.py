@@ -7,12 +7,12 @@ def to_number(value):
     """
     Helper function to cast strings to to int or float.
     """
-    if isinstance(value, str):
-        try:
-            value = int(value)
-        except ValueError:
-            value = float(value)
-    return value
+    if not isinstance(value, str):
+        return value
+    try:
+        return int(value)
+    except ValueError:
+        return float(value)
 
 
 def do_abs(value):
