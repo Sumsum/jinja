@@ -22,6 +22,11 @@ class ObjectTest:
         self.a = a
 
 
+class DropTest:
+    def test(self):
+        return "testfoo"
+
+
 def assert_equal(a, b):
     assert a == b
 
@@ -473,3 +478,14 @@ class TestLiquidFilter():
         assert_equal('Two small (13&#8221; x 5.5&#8221; x 10&#8221; high) baskets fit inside one large basket (13&#8221;...', truncatewords('Two small (13&#8221; x 5.5&#8221; x 10&#8221; high) baskets fit inside one large basket (13&#8221; x 16&#8221; x 10.5&#8221; high) with cover.', 15))
         assert_equal("测试测试测试测试", truncatewords('测试测试测试测试', 5))
         assert_equal('one two1', truncatewords("one two three", 2, 1))
+
+    def test_uniq(self, env):
+        """
+        Test taken from: https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/test/integration/standard_filter_test.rb#L217
+        """
+        uniq = FILTERS['uniq']
+        assert_equal(["foo"], uniq("foo"))
+        assert_equal([1, 3, 2, 4], uniq([1, 1, 3, 2, 3, 1, 4, 3, 2, 1]))
+        assert_equal([{"a": 1}, {"a": 3}, {"a": 2}], uniq([{"a": 1}, {"a": 3}, {"a": 1}, {"a": 2}], "a"))
+        droptest = DropTest()
+        assert_equal([droptest], uniq([droptest, DropTest()], 'test'))

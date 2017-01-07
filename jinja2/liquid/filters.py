@@ -268,3 +268,30 @@ def do_truncatewords(s, length=15, end='...'):
     if len(words) > length:
         return ' '.join(words[:length]) + end
     return s
+
+
+def do_uniq(seq, attr=None):
+    """
+    Removes any duplicate elements in an array.
+    https://github.com/Shopify/liquid/blob/b2feeacbce8e4a718bde9bc9fa9d00e44ab32351/lib/liquid/standardfilters.rb#L156
+    """
+    if isinstance(seq, str):
+        return List([seq])
+    res = List()
+    if attr is None:
+        for e in seq:
+            if e not in res:
+                res.append(e)
+    else:
+        values = []
+        for e in seq:
+            if isinstance(e, dict):
+                value = e.get(attr, None)
+            else:
+                value = getattr(e, attr, None)
+                if callable(value):
+                    value = value()
+            if value not in values:
+                res.append(e)
+                values.append(value)
+    return res
