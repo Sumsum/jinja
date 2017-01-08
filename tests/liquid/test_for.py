@@ -33,9 +33,9 @@ class TestLiquidFor():
 """
         assert_template_result(expected, template, array=[1, 2, 3])
 
-    #def test_for_reversed(self, env):
-    #    assigns = {'array': [1, 2, 3]}
-    #    assert_template_result('321', '{%for item in array reversed %}{{item}}{%endfor%}', **assigns)
+    def test_for_reversed(self, env):
+        assigns = {'array': [1, 2, 3]}
+        assert_template_result('321', '{%for item in array reversed %}{{item}}{%endfor%}', **assigns)
 #
 #  def test_for_with_range
 #    assert_template_result(' 1  2  3 ', '{%for item in (1..3) %} {{item}} {%endfor%}')

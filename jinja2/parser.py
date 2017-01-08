@@ -203,6 +203,8 @@ class Parser(object):
         test = None
         if self.stream.skip_if('name:if'):
             test = self.parse_expression()
+        if self.stream.skip_if('name:reversed'):
+            iter = nodes.Filter(iter, 'reverse', [], [], None, None)
         recursive = self.stream.skip_if('name:recursive')
         body = self.parse_statements(('name:endfor', 'name:else'))
         if next(self.stream).value == 'endfor':
