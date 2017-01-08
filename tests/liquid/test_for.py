@@ -36,9 +36,10 @@ class TestLiquidFor():
     def test_for_reversed(self, env):
         assigns = {'array': [1, 2, 3]}
         assert_template_result('321', '{%for item in array reversed %}{{item}}{%endfor%}', **assigns)
-#
-#  def test_for_with_range
-#    assert_template_result(' 1  2  3 ', '{%for item in (1..3) %} {{item}} {%endfor%}')
+
+
+#    def test_for_with_range(self, env):
+#        assert_template_result(' 1  2  3 ', '{%for item in (1..3) %} {{item}} {%endfor%}')
 #
 #    assert_raises(Liquid::ArgumentError) do
 #      Template.parse('{% for i in (a..2) %}{% endfor %}').render!("a" => [1, 2])
