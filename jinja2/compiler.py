@@ -5,7 +5,7 @@
 
     Compiles nodes into python code.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 from itertools import chain
@@ -503,18 +503,39 @@ class CodeGenerator(NodeVisitor):
         frame.symbols.analyze_node(node)
         macro_ref = MacroRef(node)
 
+        explicit_caller = None
+        skip_special_params = set()
         args = []
-        for arg in node.args:
+        for idx, arg in enumerate(node.args):
+            if arg.name == 'caller':
+                explicit_caller = idx
+            if arg.name in ('kwargs', 'varargs'):
+                skip_special_params.add(arg.name)
             args.append(frame.symbols.ref(arg.name))
 
         undeclared = find_undeclared(node.body, ('caller', 'kwargs', 'varargs'))
+
         if 'caller' in undeclared:
-            args.append(frame.symbols.declare_parameter('caller'))
+            # In older Jinja2 versions there was a bug that allowed caller
+            # to retain the special behavior even if it was mentioned in
+            # the argument list.  However thankfully this was only really
+            # working if it was the last argument.  So we are explicitly
+            # checking this now and error out if it is anywhere else in
+            # the argument list.
+            if explicit_caller is not None:
+                try:
+                    node.defaults[explicit_caller - len(node.args)]
+                except IndexError:
+                    self.fail('When defining macros or call blocks the '
+                              'special "caller" argument must be omitted '
+                              'or be given a default.', node.lineno)
+            else:
+                args.append(frame.symbols.declare_parameter('caller'))
             macro_ref.accesses_caller = True
-        if 'kwargs' in undeclared:
+        if 'kwargs' in undeclared and not 'kwargs' in skip_special_params:
             args.append(frame.symbols.declare_parameter('kwargs'))
             macro_ref.accesses_kwargs = True
-        if 'varargs' in undeclared:
+        if 'varargs' in undeclared and not 'varargs' in skip_special_params:
             args.append(frame.symbols.declare_parameter('varargs'))
             macro_ref.accesses_varargs = True
 
@@ -608,7 +629,7 @@ class CodeGenerator(NodeVisitor):
     def parameter_is_undeclared(self, target):
         """Checks if a given target is an undeclared parameter."""
         if not self._param_def_block:
-            return True
+            return False
         return target in self._param_def_block[-1]
 
     def push_assign_tracking(self):
@@ -866,7 +887,7 @@ class CodeGenerator(NodeVisitor):
         if node.with_context:
             loop = self.environment.is_async and 'async for' or 'for'
             self.writeline('%s event in template.root_render_func('
-                           'template.new_context(context.parent, True, '
+                           'template.new_context(context.get_all(), True, '
                            '%s)):' % (loop, self.dump_local_context(frame)))
         elif self.environment.is_async:
             self.writeline('for event in (await '
@@ -900,7 +921,7 @@ class CodeGenerator(NodeVisitor):
         self.visit(node.template, frame)
         self.write(', %r).' % self.name)
         if node.with_context:
-            self.write('make_module%s(context.parent, True, %s)'
+            self.write('make_module%s(context.get_all(), True, %s)'
                        % (self.environment.is_async and '_async' or '',
                           self.dump_local_context(frame)))
         elif self.environment.is_async:
@@ -918,7 +939,7 @@ class CodeGenerator(NodeVisitor):
         self.visit(node.template, frame)
         self.write(', %r).' % self.name)
         if node.with_context:
-            self.write('make_module%s(context.parent, True, %s)'
+            self.write('make_module%s(context.get_all(), True, %s)'
                        % (self.environment.is_async and '_async' or '',
                           self.dump_local_context(frame)))
         elif self.environment.is_async:
@@ -1039,7 +1060,7 @@ class CodeGenerator(NodeVisitor):
             else:
                 if self.environment.is_async:
                     self.write('auto_aiter(')
-                self.visit(node.iter, loop_frame)
+                self.visit(node.iter, frame)
                 if self.environment.is_async:
                     self.write(')')
             self.write(' if (')
@@ -1051,7 +1072,7 @@ class CodeGenerator(NodeVisitor):
         else:
             if self.environment.is_async and not extended_loop:
                 self.write('auto_aiter(')
-            self.visit(node.iter, loop_frame)
+            self.visit(node.iter, frame)
             if self.environment.is_async and not extended_loop:
                 self.write(')')
 
@@ -1134,7 +1155,7 @@ class CodeGenerator(NodeVisitor):
         self.writeline('caller = ')
         self.macro_def(macro_ref, call_frame)
         self.start_write(frame, node)
-        self.visit_Call(node.call, call_frame, forward_caller=True)
+        self.visit_Call(node.call, frame, forward_caller=True)
         self.end_write(frame)
 
     def visit_FilterBlock(self, node, frame):
@@ -1345,7 +1366,7 @@ class CodeGenerator(NodeVisitor):
         self.write(ref)
 
     def visit_Const(self, node, frame):
-        val = node.value
+        val = node.as_const(frame.eval_ctx)
         if isinstance(val, float):
             self.write(str(val))
         else:

@@ -1,8 +1,30 @@
 Jinja2 Changelog
 ================
 
+Version 2.9.2
+-------------
+(bugfix release, released on January 8th 2017)
+
+- Fixed a regression that caused for loops to not be able to use the same
+  variable for the target as well as source iterator.  (#640)
+- Add support for a previously unknown behavior of macros.  It used to be
+  possible in some circumstances to explicitly provide a caller argument
+  to macros.  While badly buggy and unintended it turns out that this is a
+  common case that gets copy pasted around.  To not completely break backwards
+  compatibility with the most common cases it's now possible to provide an
+  explicit keyword argument for caller if it's given an explicit default.
+
+Version 2.9.1
+-------------
+(bugfix release, released on January 7th 2017)
+
+- Resolved a regression with call block scoping for macros.  Nested caller
+  blocks that used the same identifiers as outer macros could refer to the
+  wrong variable incorrectly.
+
 Version 2.9
 -----------
+(codename Derivation, released on January 7th 2017)
 
 - Change cache key definition in environment. This fixes a performance
   regression introduced in 2.8.
@@ -28,6 +50,21 @@ Version 2.9
 - Ported a modified version of the `tojson` filter from Flask to Jinja2
   and hooked it up with the new policy framework.
 - Block sets are now marked `safe` by default.
+- On Python 2 the asciification of ASCII strings can now be disabled with
+  the `compiler.ascii_str` policy.
+- Tests now no longer accept an arbitrary expression as first argument but
+  a restricted one.  This means that you can now properly use multiple
+  tests in one expression without extra parentheses.  In particular you can
+  now write ``foo is divisibleby 2 or foo is divisibleby 3``
+  as you would expect.
+- Greatly changed the scoping system to be more consistent with what template
+  designers and developers expect.  There is now no more magic difference
+  between the different include and import constructs.  Context is now always
+  propagated the same way.  The only remaining differences is the defaults
+  for `with context` and `without context`.
+- The `with` and `autoescape` tags are now built-in.
+- Added the new `select_autoescape` function which helps configuring better
+  autoescaping easier.
 
 Version 2.8.2
 -------------

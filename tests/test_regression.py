@@ -5,14 +5,14 @@
 
     Tests corner cases and bugs.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 import sys
 import pytest
 
 from jinja2 import Template, Environment, DictLoader, TemplateSyntaxError, \
-     TemplateNotFound, PrefixLoader
+     TemplateAssertionError, TemplateNotFound, PrefixLoader
 from jinja2._compat import text_type
 
 
@@ -352,3 +352,93 @@ class TestBug(object):
         ''')
         assert list(map(int, tmpl.render().split())) == \
             [3, 2, 1, 5, 4, 3, 7, 6, 5]
+
+    def test_scopes_and_blocks(self):
+        env = Environment(loader=DictLoader({
+            'a.html': '''
+                {%- set foo = 'bar' -%}
+                {% include 'x.html' -%}
+            ''',
+            'b.html': '''
+                {%- set foo = 'bar' -%}
+                {% block test %}{% include 'x.html' %}{% endblock -%}
+                ''',
+            'c.html': '''
+                {%- set foo = 'bar' -%}
+                {% block test %}{% set foo = foo
+                    %}{% include 'x.html' %}{% endblock -%}
+            ''',
+            'x.html': '''{{ foo }}|{{ test }}'''
+        }))
+
+        a = env.get_template('a.html')
+        b = env.get_template('b.html')
+        c = env.get_template('c.html')
+
+        assert a.render(test='x').strip() == 'bar|x'
+        assert b.render(test='x').strip() == 'bar|x'
+        assert c.render(test='x').strip() == 'bar|x'
+
+    def test_scopes_and_include(self):
+        env = Environment(loader=DictLoader({
+            'include.html': '{{ var }}',
+            'base.html': '{% include "include.html" %}',
+            'child.html': '{% extends "base.html" %}{% set var = 42 %}',
+        }))
+        t = env.get_template('child.html')
+        assert t.render() == '42'
+
+    def test_caller_scoping(self, env):
+        t = env.from_string('''
+        {% macro detail(icon, value) -%}
+          {% if value -%}
+            <p><span class="fa fa-fw fa-{{ icon }}"></span>
+                {%- if caller is undefined -%}
+                    {{ value }}
+                {%- else -%}
+                    {{ caller(value, *varargs) }}
+                {%- endif -%}</p>
+          {%- endif %}
+        {%- endmacro %}
+
+
+        {% macro link_detail(icon, value, href) -%}
+          {% call(value, href) detail(icon, value, href) -%}
+            <a href="{{ href }}">{{ value }}</a>
+          {%- endcall %}
+        {%- endmacro %}
+        ''')
+
+        assert t.module.link_detail('circle', 'Index', '/') == (
+            '<p><span class="fa fa-fw fa-circle">'
+            '</span><a href="/">Index</a></p>')
+
+    def test_variable_reuse(self, env):
+        t = env.from_string('{% for x in x.y %}{{ x }}{% endfor %}')
+        assert t.render(x={'y': [0, 1, 2]}) == '012'
+
+        t = env.from_string('{% for x in x.y %}{{ loop.index0 }}|{{ x }}{% endfor %}')
+        assert t.render(x={'y': [0, 1, 2]}) == '0|01|12|2'
+
+        t = env.from_string('{% for x in x.y recursive %}{{ x }}{% endfor %}')
+        assert t.render(x={'y': [0, 1, 2]}) == '012'
+
+    def test_double_caller(self, env):
+        t = env.from_string('{% macro x(caller=none) %}[{% if caller %}'
+                            '{{ caller() }}{% endif %}]{% endmacro %}'
+                            '{{ x() }}{% call x() %}aha!{% endcall %}')
+        assert t.render() == '[][aha!]'
+
+    def test_double_caller_no_default(self, env):
+        with pytest.raises(TemplateAssertionError) as exc_info:
+            env.from_string('{% macro x(caller) %}[{% if caller %}'
+                            '{{ caller() }}{% endif %}]{% endmacro %}')
+        assert exc_info.match(r'"caller" argument must be omitted or '
+                              r'be given a default')
+
+        t = env.from_string('{% macro x(caller=none) %}[{% if caller %}'
+                            '{{ caller() }}{% endif %}]{% endmacro %}')
+        with pytest.raises(TypeError) as exc_info:
+            t.module.x(None, caller=lambda: 42)
+        assert exc_info.match(r'\'x\' was invoked with two values for the '
+                              r'special caller argument')

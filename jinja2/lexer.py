@@ -11,7 +11,7 @@
     operators we don't allow in templates. On the other hand it separates
     template code and python code in expressions.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 import re
@@ -574,15 +574,6 @@ class Lexer(object):
                 except Exception as e:
                     msg = str(e).split(':')[-1].strip()
                     raise TemplateSyntaxError(msg, lineno, name, filename)
-                # if we can express it as bytestring (ascii only)
-                # we do that for support of semi broken APIs
-                # as datetime.datetime.strftime.  On python 3 this
-                # call becomes a noop thanks to 2to3
-                if PY2:
-                    try:
-                        value = value.encode('ascii')
-                    except UnicodeError:
-                        pass
             elif token == 'integer':
                 value = int(value)
             elif token == 'float':

@@ -5,7 +5,7 @@
 
     Implements the template parser.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 from jinja2 import nodes
@@ -16,7 +16,8 @@ from jinja2._compat import imap
 
 _statement_keywords = frozenset(['for', 'if', 'unless', 'block', 'extends',
                                  'print', 'macro', 'include', 'section',
-                                 'from', 'import', 'set', 'assign', 'capture'])
+                                 'from', 'import', 'set', 'assign', 'capture',
+                                 'with', 'autoescape'])
 _compare_operators = frozenset(['eq', 'ne', 'lt', 'lteq', 'gt', 'gteq'])
 
 _math_nodes = {
@@ -241,6 +242,31 @@ class Parser(object):
         node = nodes.If(lineno=self.stream.expect('name:unless').lineno)
         self._parse_if(node, 'unless', negate=True)
         return node
+
+    def parse_with(self):
+        node = nodes.Scope(lineno=next(self.stream).lineno)
+        assignments = []
+        while self.stream.current.type != 'block_end':
+            lineno = self.stream.current.lineno
+            if assignments:
+                self.stream.expect('comma')
+            target = self.parse_assign_target()
+            self.stream.expect('assign')
+            expr = self.parse_expression()
+            assignments.append(nodes.Assign(target, expr, lineno=lineno))
+        node.body = assignments + \
+            list(self.parse_statements(('name:endwith',),
+                                       drop_needle=True))
+        return node
+
+    def parse_autoescape(self):
+        node = nodes.ScopedEvalContextModifier(lineno=next(self.stream).lineno)
+        node.options = [
+            nodes.Keyword('autoescape', self.parse_expression())
+        ]
+        node.body = self.parse_statements(('name:endautoescape',),
+                                          drop_needle=True)
+        return nodes.Scope([node])
 
     def parse_block(self):
         node = nodes.Block(lineno=next(self.stream).lineno)
@@ -597,7 +623,8 @@ class Parser(object):
         elif with_condexpr:
             parse = self.parse_expression
         else:
-            parse = lambda: self.parse_expression(with_condexpr=False)
+            def parse():
+                return self.parse_expression(with_condexpr=False)
         args = []
         is_tuple = False
         while 1:
@@ -838,7 +865,7 @@ class Parser(object):
                                            'name:and')):
             if self.stream.current.test('name:is'):
                 self.fail('You cannot chain multiple tests with is')
-            args = [self.parse_expression()]
+            args = [self.parse_primary()]
         else:
             args = []
         node = nodes.Test(node, name, args, kwargs, dyn_args,

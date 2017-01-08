@@ -5,7 +5,7 @@
 
     Jinja default filters and tags.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 from jinja2._compat import range_type
@@ -41,6 +41,7 @@ DEFAULT_NAMESPACE = {
 
 # default policies
 DEFAULT_POLICIES = {
+    'compiler.ascii_str':   True,
     'urlize.rel':           'noopener',
     'urlize.target':        None,
     'json.dumps_function':  None,
