@@ -976,13 +976,17 @@ class CodeGenerator(NodeVisitor):
         # try to figure out if we have an extended loop.  An extended loop
         # is necessary if the loop is in recursive mode if the special loop
         # variable is accessed in the body.
-        extended_loop = node.recursive or 'loop' in \
-                        find_undeclared(node.iter_child_nodes(
-                            only=('body',)), ('loop',))
+        extended_loop = node.recursive or \
+            'loop' in find_undeclared(node.iter_child_nodes(
+                                      only=('body',)), ('loop',)) or \
+            'forloop' in find_undeclared(node.iter_child_nodes(
+                                         only=('body',)), ('forloop',))
 
         loop_ref = None
+        forloop_ref = None
         if extended_loop:
             loop_ref = loop_frame.symbols.declare_parameter('loop')
+            forloop_ref = loop_frame.symbols.declare_parameter('forloop')
         loop_frame.symbols.analyze_node(node)
 
         if node.else_:
@@ -1001,10 +1005,11 @@ class CodeGenerator(NodeVisitor):
         # assertion error if a loop tries to write to loop
         if extended_loop:
             self.writeline('%s = missing' % loop_ref)
+            self.writeline('%s = missing' % forloop_ref)
 
         for name in node.find_all(nodes.Name):
-            if name.ctx == 'store' and name.name == 'loop':
-                self.fail('Can\'t assign to special loop variable '
+            if name.ctx == 'store' and name.name in ('loop', 'forloop'):
+                self.fail('Can\'t assign to special loop and forloop variables '
                           'in for-loop target', name.lineno)
 
         if node.else_:
@@ -1015,9 +1020,9 @@ class CodeGenerator(NodeVisitor):
         self.visit(node.target, loop_frame)
         if extended_loop:
             if self.environment.is_async:
-                self.write(', %s in await make_async_loop_context(' % loop_ref)
+                self.write(', %s, %s in await make_async_loop_context(' % (loop_ref, forloop_ref))
             else:
-                self.write(', %s in LoopContext(' % loop_ref)
+                self.write(', %s, %s in LoopContext(' % (loop_ref, forloop_ref))
         else:
             self.write(' in ')
 

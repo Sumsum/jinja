@@ -310,7 +310,9 @@ class LoopContextBase(object):
     last = property(lambda x: x._after is _last_iteration)
     index = property(lambda x: x.index0 + 1)
     revindex = property(lambda x: x.length - x.index0)
+    rindex = revindex
     revindex0 = property(lambda x: x.length - x.index)
+    rindex0 = revindex0
     depth = property(lambda x: x.depth0 + 1)
 
     def __len__(self):
@@ -393,7 +395,7 @@ class LoopContextIterator(object):
             raise StopIteration()
         next_elem = ctx._after
         ctx._after = ctx._safe_next()
-        return next_elem, ctx
+        return next_elem, ctx, ctx
 
 
 class Macro(object):
