@@ -194,18 +194,50 @@ class Parser(object):
         """Parse a capture statement."""
         return self.parse_set(name='capture')
 
+    def parse_for_iter(self):
+        iter = self.parse_tuple(with_condexpr=False,
+                                extra_end_rules=('name:recursive',))
+        token = self.stream.current
+        reverse = False
+        limit = None
+        offset = None
+        while token.type == 'name' and token.value in ('reversed', 'limit',
+                                                       'offset'):
+            next(self.stream)
+            if token.value == 'reversed':
+                reverse = True
+            elif token.value == 'limit':
+                self.stream.expect('colon')
+                limit = self.parse_expression()
+            elif token.value == 'offset':
+                self.stream.expect('colon')
+                offset = self.parse_expression()
+            token = self.stream.current
+
+        if limit is not None or offset is not None:
+            if offset is None:
+                start = nodes.Const(0)
+            else:
+                start = offset
+            if limit is None:
+                stop = nodes.Const(None)
+            else:
+                stop = nodes.Add(start, limit)
+            iter = nodes.Getitem(iter, nodes.Slice(start, stop, None), 'load')
+        # reverse at the end no matter what
+        if reverse:
+            iter = nodes.Filter(iter, 'reverse', [], [], None, None)
+        return iter
+
     def parse_for(self):
         """Parse a for loop."""
         lineno = self.stream.expect('name:for').lineno
         target = self.parse_assign_target(extra_end_rules=('name:in',))
         self.stream.expect('name:in')
-        iter = self.parse_tuple(with_condexpr=False,
-                                extra_end_rules=('name:recursive',))
+        iter = self.parse_for_iter()
         test = None
         if self.stream.skip_if('name:if'):
             test = self.parse_expression()
-        if self.stream.skip_if('name:reversed'):
-            iter = nodes.Filter(iter, 'reverse', [], [], None, None)
         recursive = self.stream.skip_if('name:recursive')
         body = self.parse_statements(('name:endfor', 'name:else'))
         if next(self.stream).value == 'endfor':

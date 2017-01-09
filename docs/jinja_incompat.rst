@@ -9,3 +9,7 @@ Filters
 - truncate, reordering of argumets from length, killwords, end, leeway to
   length, end, killwords, leeway.
 - default, boolean argument is by defualt True and not False
+
+Tags
+----
+- break/continue are included

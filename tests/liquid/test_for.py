@@ -94,30 +94,27 @@ class TestLiquidFor():
         # Do we really need/want this?
         #assert_template_result('-', '{%for item in array%}+{%else%}-{%endfor%}', array=None)
 
-#    def test_limiting(self, env):
-#        assigns = {'array': [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]}
-#        assert_template_result('12', '{%for i in array limit:2 %}{{ i }}{%endfor%}', **assigns)
-#        assert_template_result('1234', '{%for i in array limit:4 %}{{ i }}{%endfor%}', **assigns)
-#        assert_template_result('3456', '{%for i in array limit:4 offset:2 %}{{ i }}{%endfor%}', **assigns)
-#        assert_template_result('3456', '{%for i in array limit: 4 offset: 2 %}{{ i }}{%endfor%}', **assigns)
-#
-#  def test_dynamic_variable_limiting
-#    assigns = { 'array' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] }
-#    assigns['limit'] = 2
-#    assigns['offset'] = 2
-#
-#    assert_template_result('34', '{%for i in array limit: limit offset: offset %}{{ i }}{%endfor%}', assigns)
-#  end
-#
-#  def test_nested_for
-#    assigns = { 'array' => [[1, 2], [3, 4], [5, 6]] }
-#    assert_template_result('123456', '{%for item in array%}{%for i in item%}{{ i }}{%endfor%}{%endfor%}', assigns)
-#  end
-#
-#  def test_offset_only
-#    assigns = { 'array' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] }
-#    assert_template_result('890', '{%for i in array offset:7 %}{{ i }}{%endfor%}', assigns)
-#  end
+    def test_limiting(self, env):
+        assigns = {'array': [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]}
+        assert_template_result('12', '{%for i in array limit:2 %}{{ i }}{%endfor%}', **assigns)
+        assert_template_result('1234', '{%for i in array limit:4 %}{{ i }}{%endfor%}', **assigns)
+        assert_template_result('3456', '{%for i in array limit:4 offset:2 %}{{ i }}{%endfor%}', **assigns)
+        assert_template_result('3456', '{%for i in array limit: 4 offset: 2 %}{{ i }}{%endfor%}', **assigns)
+
+    def test_dynamic_variable_limiting(self, env):
+        assigns = {'array': [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]}
+        assigns['limit'] = 2
+        assigns['offset'] = 2
+
+        assert_template_result('34', '{%for i in array limit: limit offset: offset %}{{ i }}{%endfor%}', **assigns)
+
+    def test_nested_for(self, env):
+        assigns = {'array': [[1, 2], [3, 4], [5, 6]]}
+        assert_template_result('123456', '{%for item in array%}{%for i in item%}{{ i }}{%endfor%}{%endfor%}', **assigns)
+
+    def test_offset_only(self, env):
+        assigns = {'array': [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]}
+        assert_template_result('890', '{%for i in array offset:7 %}{{ i }}{%endfor%}', **assigns)
 #
 #  def test_pause_resume
 #    assigns = { 'array' => { 'items' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] } }
