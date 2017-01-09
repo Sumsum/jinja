@@ -10,7 +10,7 @@
 """
 from jinja2 import nodes
 from jinja2.exceptions import TemplateSyntaxError, TemplateAssertionError
-from jinja2.lexer import describe_token, describe_token_expr
+from jinja2.lexer import describe_token, describe_token_expr, sequence_re
 from jinja2._compat import imap
 
 
@@ -595,6 +595,8 @@ class Parser(object):
             node = self.parse_list()
         elif token.type == 'lbrace':
             node = self.parse_dict()
+        elif token.type == 'sequence':
+            node = self.parse_sequence()
         else:
             self.fail("unexpected '%s'" % describe_token(token), token.lineno)
         return node
@@ -681,6 +683,18 @@ class Parser(object):
             items.append(nodes.Pair(key, value, lineno=key.lineno))
         self.stream.expect('rbrace')
         return nodes.Dict(items, lineno=token.lineno)
+
+    def parse_sequence(self):
+        """
+        Kind of a hacky way to turn a sequence as (start..stop) into
+        (start, stop)|range by parsing new source built from the
+        sequence token.
+        """
+        token = self.stream.expect('sequence')
+        m = sequence_re.match(token.value)
+        source = '({}, {})|range'.format(m.group('start'), m.group('stop'))
+        p = Parser(self.environment, source, state='block')
+        return p.parse_expression()
 
     def parse_postfix(self, node):
         while 1:

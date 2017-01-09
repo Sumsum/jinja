@@ -219,6 +219,22 @@ def do_prepend(a, b):
     return '{}{}'.format(b, a)
 
 
+def do_range(value):
+    """
+    Returns a range from value, including stop value.
+    """
+    start, stop = value
+    try:
+        start = int(start)
+    except ValueError:
+        start = 0
+    try:
+        stop = int(stop)
+    except ValueError:
+        stop = 0
+    return range(start, stop + 1)
+
+
 def do_remove(s, remove):
     """
     Removes every occurrence of the specified substring from a string.

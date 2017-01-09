@@ -7,6 +7,10 @@ def assert_template_result(res, s, **ctx):
     assert tmpl.render(**ctx) == res
 
 
+class ThingWithValue:
+    value = 3
+
+
 @pytest.mark.liquid_for
 class TestLiquidFor():
     """
@@ -37,73 +41,65 @@ class TestLiquidFor():
         assigns = {'array': [1, 2, 3]}
         assert_template_result('321', '{%for item in array reversed %}{{item}}{%endfor%}', **assigns)
 
+    def test_for_with_range(self, env):
+        assert_template_result(' 1  2  3 ', '{%for item in (1..3) %} {{item}} {%endfor%}')
+        with pytest.raises(TypeError):
+            assert_template_result('', '{% for i in (a..2) %}{% endfor %}', a=[1, 2])
+        assert_template_result(' 0  1  2  3 ', '{% for item in (a..3) %} {{item}} {% endfor %}', a="invalid integer")
 
-#    def test_for_with_range(self, env):
-#        assert_template_result(' 1  2  3 ', '{%for item in (1..3) %} {{item}} {%endfor%}')
-#
-#    assert_raises(Liquid::ArgumentError) do
-#      Template.parse('{% for i in (a..2) %}{% endfor %}').render!("a" => [1, 2])
-#    end
-#
-#    assert_template_result(' 0  1  2  3 ', '{% for item in (a..3) %} {{item}} {% endfor %}', "a" => "invalid integer")
-#  end
-#
-#  def test_for_with_variable_range
-#    assert_template_result(' 1  2  3 ', '{%for item in (1..foobar) %} {{item}} {%endfor%}', "foobar" => 3)
-#  end
-#
-#  def test_for_with_hash_value_range
-#    foobar = { "value" => 3 }
-#    assert_template_result(' 1  2  3 ', '{%for item in (1..foobar.value) %} {{item}} {%endfor%}', "foobar" => foobar)
-#  end
-#
-#  def test_for_with_drop_value_range
-#    foobar = ThingWithValue.new
-#    assert_template_result(' 1  2  3 ', '{%for item in (1..foobar.value) %} {{item}} {%endfor%}', "foobar" => foobar)
-#  end
-#
-#  def test_for_with_variable
-#    assert_template_result(' 1  2  3 ', '{%for item in array%} {{item}} {%endfor%}', 'array' => [1, 2, 3])
-#    assert_template_result('123', '{%for item in array%}{{item}}{%endfor%}', 'array' => [1, 2, 3])
-#    assert_template_result('123', '{% for item in array %}{{item}}{% endfor %}', 'array' => [1, 2, 3])
-#    assert_template_result('abcd', '{%for item in array%}{{item}}{%endfor%}', 'array' => ['a', 'b', 'c', 'd'])
-#    assert_template_result('a b c', '{%for item in array%}{{item}}{%endfor%}', 'array' => ['a', ' ', 'b', ' ', 'c'])
-#    assert_template_result('abc', '{%for item in array%}{{item}}{%endfor%}', 'array' => ['a', '', 'b', '', 'c'])
-#  end
-#
-#  def test_for_helpers
-#    assigns = { 'array' => [1, 2, 3] }
-#    assert_template_result(' 1/3  2/3  3/3 ',
-#      '{%for item in array%} {{forloop.index}}/{{forloop.length}} {%endfor%}',
-#      assigns)
-#    assert_template_result(' 1  2  3 ', '{%for item in array%} {{forloop.index}} {%endfor%}', assigns)
-#    assert_template_result(' 0  1  2 ', '{%for item in array%} {{forloop.index0}} {%endfor%}', assigns)
-#    assert_template_result(' 2  1  0 ', '{%for item in array%} {{forloop.rindex0}} {%endfor%}', assigns)
-#    assert_template_result(' 3  2  1 ', '{%for item in array%} {{forloop.rindex}} {%endfor%}', assigns)
-#    assert_template_result(' true  false  false ', '{%for item in array%} {{forloop.first}} {%endfor%}', assigns)
-#    assert_template_result(' false  false  true ', '{%for item in array%} {{forloop.last}} {%endfor%}', assigns)
-#  end
-#
-#  def test_for_and_if
-#    assigns = { 'array' => [1, 2, 3] }
-#    assert_template_result('+--',
-#      '{%for item in array%}{% if forloop.first %}+{% else %}-{% endif %}{%endfor%}',
-#      assigns)
-#  end
-#
-#  def test_for_else
-#    assert_template_result('+++', '{%for item in array%}+{%else%}-{%endfor%}', 'array' => [1, 2, 3])
-#    assert_template_result('-',   '{%for item in array%}+{%else%}-{%endfor%}', 'array' => [])
-#    assert_template_result('-',   '{%for item in array%}+{%else%}-{%endfor%}', 'array' => nil)
-#  end
-#
-#  def test_limiting
-#    assigns = { 'array' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] }
-#    assert_template_result('12', '{%for i in array limit:2 %}{{ i }}{%endfor%}', assigns)
-#    assert_template_result('1234', '{%for i in array limit:4 %}{{ i }}{%endfor%}', assigns)
-#    assert_template_result('3456', '{%for i in array limit:4 offset:2 %}{{ i }}{%endfor%}', assigns)
-#    assert_template_result('3456', '{%for i in array limit: 4 offset: 2 %}{{ i }}{%endfor%}', assigns)
-#  end
+    def test_for_with_variable_range(self, env):
+        assert_template_result(' 1  2  3 ', '{%for item in (1..foobar) %} {{item}} {%endfor%}', foobar=3)
+
+    def test_for_with_hash_value_range(self, env):
+        foobar = {"value": 3}
+        assert_template_result(' 1  2  3 ', '{%for item in (1..foobar.value) %} {{item}} {%endfor%}', foobar=foobar)
+
+    def test_for_with_drop_value_range(self, env):
+        foobar = ThingWithValue()
+        assert_template_result(' 1  2  3 ', '{%for item in (1..foobar.value) %} {{item}} {%endfor%}', foobar=foobar)
+
+    def test_for_with_variable(self, env):
+        assert_template_result(' 1  2  3 ', '{%for item in array%} {{item}} {%endfor%}', array=[1, 2, 3])
+        assert_template_result('123', '{%for item in array%}{{item}}{%endfor%}', array=[1, 2, 3])
+        assert_template_result('123', '{% for item in array %}{{item}}{% endfor %}', array=[1, 2, 3])
+        assert_template_result('abcd', '{%for item in array%}{{item}}{%endfor%}', array=['a', 'b', 'c', 'd'])
+        assert_template_result('a b c', '{%for item in array%}{{item}}{%endfor%}', array=['a', ' ', 'b', ' ', 'c'])
+        assert_template_result('abc', '{%for item in array%}{{item}}{%endfor%}', array=['a', '', 'b', '', 'c'])
+
+    def test_for_helpers(self, env):
+        assigns = {'array': [1, 2, 3]}
+        assert_template_result(
+            ' 1/3  2/3  3/3 ',
+            '{%for item in array%} {{forloop.index}}/{{forloop.length}} {%endfor%}',
+            **assigns
+        )
+        assert_template_result(' 1  2  3 ', '{%for item in array%} {{forloop.index}} {%endfor%}', **assigns)
+        assert_template_result(' 0  1  2 ', '{%for item in array%} {{forloop.index0}} {%endfor%}', **assigns)
+        assert_template_result(' 2  1  0 ', '{%for item in array%} {{forloop.rindex0}} {%endfor%}', **assigns)
+        assert_template_result(' 3  2  1 ', '{%for item in array%} {{forloop.rindex}} {%endfor%}', **assigns)
+        assert_template_result(' True  False  False ', '{%for item in array%} {{forloop.first}} {%endfor%}', **assigns)
+        assert_template_result(' False  False  True ', '{%for item in array%} {{forloop.last}} {%endfor%}', **assigns)
+
+    def test_for_and_if(self, env):
+        assigns = {'array': [1, 2, 3]}
+        assert_template_result(
+            '+--',
+            '{%for item in array%}{% if forloop.first %}+{% else %}-{% endif %}{%endfor%}',
+            **assigns
+        )
+
+    def test_for_else(self, env):
+        assert_template_result('+++', '{%for item in array%}+{%else%}-{%endfor%}', array=[1, 2, 3])
+        assert_template_result('-', '{%for item in array%}+{%else%}-{%endfor%}', array=[])
+        # Do we really need/want this?
+        #assert_template_result('-', '{%for item in array%}+{%else%}-{%endfor%}', array=None)
+
+#    def test_limiting(self, env):
+#        assigns = {'array': [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]}
+#        assert_template_result('12', '{%for i in array limit:2 %}{{ i }}{%endfor%}', **assigns)
+#        assert_template_result('1234', '{%for i in array limit:4 %}{{ i }}{%endfor%}', **assigns)
+#        assert_template_result('3456', '{%for i in array limit:4 offset:2 %}{{ i }}{%endfor%}', **assigns)
+#        assert_template_result('3456', '{%for i in array limit: 4 offset: 2 %}{{ i }}{%endfor%}', **assigns)
 #
 #  def test_dynamic_variable_limiting
 #    assigns = { 'array' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] }

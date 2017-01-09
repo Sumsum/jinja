@@ -33,6 +33,7 @@ whitespace_re = re.compile(r'\s+', re.U)
 string_re = re.compile(r"('([^'\\]*(?:\\.[^'\\]*)*)'"
                        r'|"([^"\\]*(?:\\.[^"\\]*)*)")', re.S)
 integer_re = re.compile(r'\d+')
+sequence_re = re.compile(r'\((?P<start>[\.\w]+)\.\.(?P<stop>[\.\w]+)\)')
 
 # we use the unicode identifier rule if this python version is able
 # to handle unicode identifiers, otherwise the standard ASCII one.
@@ -421,6 +422,7 @@ class Lexer(object):
             (integer_re, TOKEN_INTEGER, None),
             (name_re, TOKEN_NAME, None),
             (string_re, TOKEN_STRING, None),
+            (sequence_re, TOKEN_SEQUENCE, None),
             (operator_re, TOKEN_OPERATOR, None)
         ]
 
