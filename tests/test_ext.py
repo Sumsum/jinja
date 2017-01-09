@@ -195,17 +195,6 @@ class TestExtensions(object):
             {%- endfor %}{{ items|join(', ') }}''')
         assert tmpl.render() == '0f, 1o, 2o'
 
-    def test_with(self):
-        env = Environment(extensions=['jinja2.ext.with_'])
-        tmpl = env.from_string('''\
-        {% with a=42, b=23 -%}
-            {{ a }} = {{ b }}
-        {% endwith -%}
-            {{ a }} = {{ b }}\
-        ''')
-        assert [x.strip() for x in tmpl.render(a=1, b=2).splitlines()] \
-            == ['42 = 23', '1 = 2']
-
     def test_extension_nodes(self):
         env = Environment(extensions=[ExampleExtension])
         tmpl = env.from_string('{% test %}')
@@ -312,6 +301,39 @@ class TestInternationalization(object):
             (6, 'ngettext', (u'%(users)s user', u'%(users)s users', None),
              ['third'])
         ]
+
+
+@pytest.mark.ext
+class TestScope(object):
+
+    def test_basic_scope_behavior(self):
+        # This is what the old with statement compiled down to
+        class ScopeExt(Extension):
+            tags = set(['scope'])
+
+            def parse(self, parser):
+                node = nodes.Scope(lineno=next(parser.stream).lineno)
+                assignments = []
+                while parser.stream.current.type != 'block_end':
+                    lineno = parser.stream.current.lineno
+                    if assignments:
+                        parser.stream.expect('comma')
+                    target = parser.parse_assign_target()
+                    parser.stream.expect('assign')
+                    expr = parser.parse_expression()
+                    assignments.append(nodes.Assign(target, expr, lineno=lineno))
+                node.body = assignments + \
+                    list(parser.parse_statements(('name:endscope',),
+                                                 drop_needle=True))
+                return node
+
+        env = Environment(extensions=[ScopeExt])
+        tmpl = env.from_string('''\
+        {%- scope a=1, b=2, c=b, d=e, e=5 -%}
+            {{ a }}|{{ b }}|{{ c }}|{{ d }}|{{ e }}
+        {%- endscope -%}
+        ''')
+        assert tmpl.render(b=3, e=4) == '1|2|2|4|5'
 
 
 @pytest.mark.ext
@@ -473,3 +495,26 @@ class TestAutoEscape(object):
                           autoescape=True)
         pysource = env.compile(tmplsource, raw=True)
         assert '&lt;testing&gt;\\n' in pysource
+
+    def test_overlay_scopes(self):
+        class MagicScopeExtension(Extension):
+            tags = set(['overlay'])
+            def parse(self, parser):
+                node = nodes.OverlayScope(lineno=next(parser.stream).lineno)
+                node.body = list(parser.parse_statements(('name:endoverlay',),
+                                                         drop_needle=True))
+                node.context = self.call_method('get_scope')
+                return node
+            def get_scope(self):
+                return {'x': [1, 2, 3]}
+
+        env = Environment(extensions=[MagicScopeExtension])
+
+        tmpl = env.from_string('''
+            {{- x }}|{% set z = 99 %}
+            {%- overlay %}
+                {{- y }}|{{ z }}|{% for item in x %}[{{ item }}]{% endfor %}
+            {%- endoverlay %}|
+            {{- x -}}
+        ''')
+        assert tmpl.render(x=42, y=23) == '42|23|99|[1][2][3]|42'

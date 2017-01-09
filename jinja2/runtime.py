@@ -100,7 +100,7 @@ class Context(object):
     The context is immutable.  Modifications on :attr:`parent` **must not**
     happen and modifications on :attr:`vars` are allowed from generated
     template code only.  Template filters and global functions marked as
-    :func:`contextfunction`\s get the active context passed as first argument
+    :func:`contextfunction`\\s get the active context passed as first argument
     and are allowed to access the context read-only.
 
     The template context supports read only dict operations (`get`,
@@ -214,10 +214,12 @@ class Context(object):
                                                 'StopIteration exception')
 
     def derived(self, locals=None):
-        """Internal helper function to create a derived context."""
+        """Internal helper function to create a derived context.  This is
+        used in situations where the system needs a new context in the same
+        template that is independent.
+        """
         context = new_context(self.environment, self.name, {},
-                              self.parent, True, None, locals)
-        context.vars.update(self.vars)
+                              self.get_all(), True, None, locals)
         context.eval_ctx = self.eval_ctx
         context.blocks.update((k, list(v)) for k, v in iteritems(self.blocks))
         return context

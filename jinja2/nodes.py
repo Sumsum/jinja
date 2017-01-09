@@ -337,6 +337,15 @@ class FilterBlock(Stmt):
     fields = ('body', 'filter')
 
 
+class With(Stmt):
+    """Specific node for with statements.  In older versions of Jinja the
+    with statement was implemented on the base of the `Scope` node instead.
+
+    .. versionadded:: 2.9.3
+    """
+    fields = ('targets', 'values', 'body')
+
+
 class Block(Stmt):
     """A node that represents a block."""
     fields = ('name', 'body', 'scoped')
@@ -717,7 +726,7 @@ class Concat(Expr):
 
 class Compare(Expr):
     """Compares an expression with some other expressions.  `ops` must be a
-    list of :class:`Operand`\s.
+    list of :class:`Operand`\\s.
     """
     fields = ('expr', 'ops')
 
@@ -908,6 +917,22 @@ class Break(Stmt):
 class Scope(Stmt):
     """An artificial scope."""
     fields = ('body',)
+
+
+class OverlayScope(Stmt):
+    """An overlay scope for extensions.  This is a largely unoptimized scope
+    that however can be used to introduce completely arbitrary variables into
+    a sub scope from a dictionary or dictionary like object.  The `context`
+    field has to evaluate to a dictionary object.
+
+    Example usage::
+
+        OverlayScope(context=self.call_method('get_context'),
+                     body=[...])
+
+    .. versionadded:: 2.10
+    """
+    fields = ('context', 'body')
 
 
 class EvalContextModifier(Stmt):

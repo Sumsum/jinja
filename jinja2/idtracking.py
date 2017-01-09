@@ -24,11 +24,13 @@ def symbols_for_node(node, parent_symbols=None):
 
 class Symbols(object):
 
-    def __init__(self, parent=None):
-        if parent is None:
-            self.level = 0
-        else:
-            self.level = parent.level + 1
+    def __init__(self, parent=None, level=None):
+        if level is None:
+            if parent is None:
+                level = 0
+            else:
+                level = parent.level + 1
+        self.level = level
         self.parent = parent
         self.refs = {}
         self.loads = {}
@@ -73,10 +75,22 @@ class Symbols(object):
         return rv
 
     def store(self, name):
-        # We already have that name locally, so we can just bail
-        if name not in self.refs:
-            self._define_ref(name, load=(VAR_LOAD_UNDEFINED, None))
         self.stores.add(name)
+
+        # If we have not see the name referenced yet, we need to figure
+        # out what to set it to.
+        if name not in self.refs:
+            # If there is a parent scope we check if the name has a
+            # reference there.  If it does it means we might have to alias
+            # to a variable there.
+            if self.parent is not None:
+                outer_ref = self.parent.find_ref(name)
+                if outer_ref is not None:
+                    self._define_ref(name, load=(VAR_LOAD_ALIAS, outer_ref))
+                    return
+
+            # Otherwise we can just set it to undefined.
+            self._define_ref(name, load=(VAR_LOAD_UNDEFINED, None))
 
     def declare_parameter(self, name):
         self.stores.add(name)
@@ -155,6 +169,10 @@ class RootVisitor(NodeVisitor):
         for child in node.iter_child_nodes(exclude=('call',)):
             self.sym_visitor.visit(child)
 
+    def visit_OverlayScope(self, node, **kwargs):
+        for child in node.body:
+            self.sym_visitor.visit(child)
+
     def visit_For(self, node, for_branch='body', **kwargs):
         if node.test is not None:
             self.sym_visitor.visit(node.test)
@@ -167,6 +185,12 @@ class RootVisitor(NodeVisitor):
             raise RuntimeError('Unknown for branch')
         for item in branch or ():
             self.sym_visitor.visit(item)
+
+    def visit_With(self, node, **kwargs):
+        for target in node.targets:
+            self.sym_visitor.visit(target)
+        for child in node.body:
+            self.sym_visitor.visit(child)
 
     def generic_visit(self, node, *args, **kwargs):
         raise NotImplementedError('Cannot find symbols for %r' %
@@ -237,6 +261,10 @@ class FrameSymbolVisitor(NodeVisitor):
     def visit_FilterBlock(self, node, **kwargs):
         self.visit(node.filter, **kwargs)
 
+    def visit_With(self, node, **kwargs):
+        for target in node.values:
+            self.visit(target)
+
     def visit_AssignBlock(self, node, **kwargs):
         """Stop visiting at block assigns."""
         self.visit(node.target, **kwargs)
@@ -246,3 +274,6 @@ class FrameSymbolVisitor(NodeVisitor):
 
     def visit_Block(self, node, **kwargs):
         """Stop visiting at blocks."""
+
+    def visit_OverlayScope(self, node, **kwargs):
+        """Do not visit into overlay scopes."""

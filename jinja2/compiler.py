@@ -19,7 +19,7 @@ from jinja2.optimizer import Optimizer
 from jinja2.exceptions import TemplateAssertionError
 from jinja2.utils import Markup, concat, escape
 from jinja2._compat import range_type, text_type, string_types, \
-     iteritems, NativeStringIO, imap
+     iteritems, NativeStringIO, imap, izip
 from jinja2.idtracking import Symbols, VAR_LOAD_PARAMETER, \
      VAR_LOAD_RESOLVE, VAR_LOAD_ALIAS, VAR_LOAD_UNDEFINED
 
@@ -130,9 +130,10 @@ class MacroRef(object):
 class Frame(object):
     """Holds compile time information for us."""
 
-    def __init__(self, eval_ctx, parent=None):
+    def __init__(self, eval_ctx, parent=None, level=None):
         self.eval_ctx = eval_ctx
-        self.symbols = Symbols(parent and parent.symbols or None)
+        self.symbols = Symbols(parent and parent.symbols or None,
+                               level=level)
 
         # a toplevel frame is the root + soft frames such as if conditions.
         self.toplevel = False
@@ -168,8 +169,10 @@ class Frame(object):
         rv.symbols = self.symbols.copy()
         return rv
 
-    def inner(self):
+    def inner(self, isolated=False):
         """Return an inner frame."""
+        if isolated:
+            return Frame(self.eval_ctx, level=self.symbols.level + 1)
         return Frame(self.eval_ctx, self)
 
     def soft(self):
@@ -301,6 +304,9 @@ class CodeGenerator(NodeVisitor):
 
         # Tracks parameter definition blocks
         self._param_def_block = []
+
+        # Tracks the current context.
+        self._context_reference_stack = ['context']
 
     # -- Various compilation helpers
 
@@ -473,8 +479,8 @@ class CodeGenerator(NodeVisitor):
             if action == VAR_LOAD_PARAMETER:
                 pass
             elif action == VAR_LOAD_RESOLVE:
-                self.writeline('%s = resolve(%r)' %
-                               (target, param))
+                self.writeline('%s = %s(%r)' %
+                               (target, self.get_resolve_func(), param))
             elif action == VAR_LOAD_ALIAS:
                 self.writeline('%s = %s' % (target, param))
             elif action == VAR_LOAD_UNDEFINED:
@@ -625,6 +631,27 @@ class CodeGenerator(NodeVisitor):
         """
         if self._param_def_block:
             self._param_def_block[-1].discard(target)
+
+    def push_context_reference(self, target):
+        self._context_reference_stack.append(target)
+
+    def pop_context_reference(self):
+        self._context_reference_stack.pop()
+
+    def get_context_ref(self):
+        return self._context_reference_stack[-1]
+
+    def get_resolve_func(self):
+        target = self._context_reference_stack[-1]
+        if target == 'context':
+            return 'resolve'
+        return '%s.resolve' % target
+
+    def derive_context(self, frame):
+        return '%s.derived(%s)' % (
+            self.get_context_ref(),
+            self.dump_local_context(frame),
+        )
 
     def parameter_is_undeclared(self, target):
         """Checks if a given target is an undeclared parameter."""
@@ -793,10 +820,14 @@ class CodeGenerator(NodeVisitor):
                 self.writeline('if parent_template is None:')
                 self.indent()
                 level += 1
-        context = node.scoped and (
-            'context.derived(%s)' % self.dump_local_context(frame)) or 'context'
 
-        if supports_yield_from and not self.environment.is_async:
+        if node.scoped:
+            context = self.derive_context(frame)
+        else:
+            context = self.get_context_ref()
+
+        if supports_yield_from and not self.environment.is_async and \
+           frame.buffer is None:
             self.writeline('yield from context.blocks[%r][0](%s)' % (
                            node.name, context), node)
         else:
@@ -1168,6 +1199,18 @@ class CodeGenerator(NodeVisitor):
         self.visit_Filter(node.filter, filter_frame)
         self.end_write(frame)
         self.leave_frame(filter_frame)
+
+    def visit_With(self, node, frame):
+        with_frame = frame.inner()
+        with_frame.symbols.analyze_node(node)
+        self.enter_frame(with_frame)
+        for idx, (target, expr) in enumerate(izip(node.targets, node.values)):
+            self.newline()
+            self.visit(target, with_frame)
+            self.write(' = ')
+            self.visit(expr, frame)
+        self.blockvisit(node.body, with_frame)
+        self.leave_frame(with_frame)
 
     def visit_ExprStmt(self, node, frame):
         self.newline(node)
@@ -1622,6 +1665,20 @@ class CodeGenerator(NodeVisitor):
         self.enter_frame(scope_frame)
         self.blockvisit(node.body, scope_frame)
         self.leave_frame(scope_frame)
+
+    def visit_OverlayScope(self, node, frame):
+        ctx = self.temporary_identifier()
+        self.writeline('%s = %s' % (ctx, self.derive_context(frame)))
+        self.writeline('%s.vars = ' % ctx)
+        self.visit(node.context, frame)
+        self.push_context_reference(ctx)
+
+        scope_frame = frame.inner(isolated=True)
+        scope_frame.symbols.analyze_node(node)
+        self.enter_frame(scope_frame)
+        self.blockvisit(node.body, scope_frame)
+        self.leave_frame(scope_frame)
+        self.pop_context_reference()
 
     def visit_EvalContextModifier(self, node, frame):
         for keyword in node.options:
