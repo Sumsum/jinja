@@ -12,10 +12,10 @@
 """
 from jinja2 import nodes
 from jinja2.defaults import BLOCK_START_STRING, \
-     BLOCK_END_STRING, VARIABLE_START_STRING, VARIABLE_END_STRING, \
-     COMMENT_START_STRING, COMMENT_END_STRING, LINE_STATEMENT_PREFIX, \
-     LINE_COMMENT_PREFIX, TRIM_BLOCKS, NEWLINE_SEQUENCE, \
-     KEEP_TRAILING_NEWLINE, LSTRIP_BLOCKS
+    BLOCK_END_STRING, VARIABLE_START_STRING, VARIABLE_END_STRING, \
+    COMMENT_START_STRING, COMMENT_END_STRING, LINE_STATEMENT_PREFIX, \
+    LINE_COMMENT_PREFIX, TRIM_BLOCKS, NEWLINE_SEQUENCE, \
+    KEEP_TRAILING_NEWLINE, LSTRIP_BLOCKS
 from jinja2.environment import Environment
 from jinja2.runtime import concat
 from jinja2.exceptions import TemplateAssertionError, TemplateSyntaxError
@@ -400,14 +400,7 @@ class ExprStmtExtension(Extension):
 
 
 class LoopControlExtension(Extension):
-    """Adds break and continue to the template engine."""
-    tags = set(['break', 'continue'])
-
-    def parse(self, parser):
-        token = next(parser.stream)
-        if token.value == 'break':
-            return nodes.Break(lineno=token.lineno)
-        return nodes.Continue(lineno=token.lineno)
+    pass
 
 
 class WithExtension(Extension):
@@ -590,7 +583,7 @@ def babel_extract(fileobj, keywords, comment_tags, options):
     try:
         node = environment.parse(source)
         tokens = list(environment.lex(environment.preprocess(source)))
-    except TemplateSyntaxError as e:
+    except TemplateSyntaxError:
         if not silent:
             raise
         # skip templates with syntax errors

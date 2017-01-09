@@ -14,10 +14,11 @@ from jinja2.lexer import describe_token, describe_token_expr, sequence_re
 from jinja2._compat import imap
 
 
-_statement_keywords = frozenset(['for', 'if', 'unless', 'block', 'extends',
-                                 'print', 'macro', 'include', 'section',
-                                 'from', 'import', 'set', 'assign', 'capture',
-                                 'with', 'autoescape'])
+_statement_keywords = frozenset(['for', 'if', 'unless', 'break', 'continue',
+                                 'block', 'extends', 'print', 'macro',
+                                 'include', 'section', 'from', 'import',
+                                 'set', 'assign', 'capture', 'with',
+                                 'autoescape'])
 _compare_operators = frozenset(['eq', 'ne', 'lt', 'lteq', 'gt', 'gteq'])
 
 _math_nodes = {
@@ -244,6 +245,12 @@ class Parser(object):
         node = nodes.If(lineno=self.stream.expect('name:unless').lineno)
         self._parse_if(node, 'unless', negate=True)
         return node
+
+    def parse_break(self):
+        return nodes.Break(lineno=next(self.stream).lineno)
+
+    def parse_continue(self):
+        return nodes.Continue(lineno=next(self.stream).lineno)
 
     def parse_with(self):
         node = nodes.With(lineno=next(self.stream).lineno)
