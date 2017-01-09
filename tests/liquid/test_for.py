@@ -1,5 +1,6 @@
 import pytest
 from jinja2 import Environment
+from jinja2.exceptions import TemplateSyntaxError
 
 
 def assert_template_result(res, s, **ctx):
@@ -279,7 +280,7 @@ class TestLiquidFor():
 
         #assert_template_result('test string',
         #  '{%for val in string limit:1%}{{val}}{%endfor%}',
-        #  'string' => "test string")
+        #  string="test string")
 
         # not sure we can support this string iteration model
         #assert_template_result('val-string-1-1-0-1-0-true-true-test string', (
@@ -316,35 +317,30 @@ class TestLiquidFor():
 
     def test_blank_string_not_iterable(self, env):
         assert_template_result('', "{% for char in characters %}I WILL NOT BE OUTPUT{% endfor %}", characters='')
+
+    def test_bad_variable_naming_in_for_loop(self, env):
+        with pytest.raises(TemplateSyntaxError):
+            assert_template_result('', '{% for a/b in x %}{% endfor %}')
+
+    def test_spacing_with_variable_naming_in_for_loop(self, env):
+        expected = '12345'
+        template = '{% for       item   in   items %}{{item}}{% endfor %}'
+        assigns = {'items': [1, 2, 3, 4, 5]}
+        assert_template_result(expected, template, **assigns)
+
+#  class LoaderDrop:
+#      each_called = None
+#      load_slice_called = None
 #
-#  def test_bad_variable_naming_in_for_loop
-#    assert_raises(Liquid::SyntaxError) do
-#      Liquid::Template.parse('{% for a/b in x %}{% endfor %}')
-#    end
-#  end
+#      def __init__(self, data):
+#    self.data = data
 #
-#  def test_spacing_with_variable_naming_in_for_loop
-#    expected = '12345'
-#    template = '{% for       item   in   items %}{{item}}{% endfor %}'
-#    assigns  = { 'items' => [1, 2, 3, 4, 5] }
-#    assert_template_result(expected, template, assigns)
-#  end
+#    def each(self):
+#        self.each_called = True
 #
-#  class LoaderDrop < Liquid::Drop
-#    attr_accessor :each_called, :load_slice_called
-#
-#    def initialize(data)
-#      @data = data
-#    end
-#
-#    def each
-#      @each_called = true
-#      @data.each { |el| yield el }
-#    end
-#
-#    def load_slice(from, to)
+#    def load_slice(self, start, stop)
 #      @load_slice_called = true
-#      @data[(from..to - 1)]
+#      data[start:stop]
 #    end
 #  end
 #

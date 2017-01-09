@@ -194,9 +194,9 @@ class Parser(object):
         """Parse a capture statement."""
         return self.parse_set(name='capture')
 
-    def parse_for_iter(self):
-        iter = self.parse_tuple(with_condexpr=False,
-                                extra_end_rules=('name:recursive',))
+    def _parse_for_iter(self):
+        iter = self.parse_tuple(with_condexpr=False, extra_end_rules=(
+            'name:recursive', 'name:reversed', 'name:limit', 'name:offset'))
         token = self.stream.current
         reverse = False
         limit = None
@@ -234,7 +234,7 @@ class Parser(object):
         lineno = self.stream.expect('name:for').lineno
         target = self.parse_assign_target(extra_end_rules=('name:in',))
         self.stream.expect('name:in')
-        iter = self.parse_for_iter()
+        iter = self._parse_for_iter()
         test = None
         if self.stream.skip_if('name:if'):
             test = self.parse_expression()
