@@ -503,13 +503,13 @@ class TestLiquidFilter():
         """
 
         truncate = FILTERS['truncate']
-        assert_equal('1234567890', truncate('1234567890', 7))
-        assert_equal('1234...', truncate('123456789012345678', 7))
-        assert_equal('1234567890', truncate('1234567890', 20))
-        assert_equal('...', truncate('1234567890', 0))
-        assert_equal('1234567890', truncate('1234567890'))
-        assert_equal("测试...", truncate("测试测试测试测试测试测试测试测试", 5))
-        assert_equal('12341', truncate("1234567890123456", 5, 1))
+        assert_equal('1234567890', truncate(env, '1234567890', 7))
+        assert_equal('1234...', truncate(env, '123456789012345678', 7))
+        assert_equal('1234567890', truncate(env, '1234567890', 20))
+        assert_equal('...', truncate(env, '1234567890', 0))
+        assert_equal('1234567890', truncate(env, '1234567890'))
+        assert_equal("测试...", truncate(env, "测试测试测试测试测试测试测试测试", 5))
+        assert_equal('12341', truncate(env, "1234567890123456", 5, 1))
 
     def test_truncate_words(self, env):
         """

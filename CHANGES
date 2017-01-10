@@ -11,7 +11,7 @@ Version 2.10
 
 Version 2.9.4
 -------------
-(unreleased bugfix release)
+(bugfix release, released on January 10th 2017)
 
 - Solved some warnings for string literals.  (#646)
 - Increment the bytecode cache version which was not done due to an
@@ -20,6 +20,8 @@ Version 2.9.4
 - Resolved an issue where top-level output silencing after known extend
   blocks could generate invalid code when blocks where contained in if
   statements.  (#651)
+- Made the `truncate.leeway` default configurable to improve compatibility
+  with older templates.
 
 Version 2.9.3
 -------------

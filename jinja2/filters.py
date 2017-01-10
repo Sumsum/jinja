@@ -518,15 +518,16 @@ def do_indent(s, width=4, indentfirst=False):
     return rv
 
 
-def do_truncate(s, length=255, end='...', killwords=False, leeway=5):
-    """Return a truncated copy of the string. The length is specified with the
-    first parameter which defaults to ``255``. If the killword parameter is
-    ``true`` the filter will cut the text at length. Otherwise it will discard
-    the last word. If the text was in fact truncated it will append an ellipsis
-    sign (``"..."``). If you want a different ellipsis sign than ``"..."`` you
-    can specify it using the end parameter. Strings that only exceed the length
-    by the tolerance margin given in the leeway parameter will not be
-    truncated.
+@environmentfilter
+def do_truncate(env, s, length=255, end='...', killwords=False, leeway=None):
+    """Return a truncated copy of the string. The length is specified
+    with the first parameter which defaults to ``255``. If the killwords
+    parameter is ``true`` the filter will cut the text at length. Otherwise
+    it will discard the last word. If the text was in fact
+    truncated it will append an ellipsis sign (``"..."``). If you want a
+    different ellipsis sign than ``"..."`` you can specify it using the
+    end parameter. Strings that only exceed the length by the tolerance
+    margin given in the fourth parameter will not be truncated.
 
     .. sourcecode:: jinja
 
@@ -539,7 +540,11 @@ def do_truncate(s, length=255, end='...', killwords=False, leeway=5):
         {{ "foo bar baz qux"|truncate(11, '...', killwords=False, 0) }}
             -> "foo bar..."
 
+    The default leeway on newer Jinja2 versions is 5 and was 0 before but
+    can be reconfigured globally.
     """
+    if leeway is None:
+        leeway = env.policies['truncate.leeway']
     end = str(end)
     assert length >= 0, 'expected length >= 0, got %s' % length
     length = max(length, len(end))
