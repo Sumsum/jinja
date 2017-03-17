@@ -19,7 +19,7 @@ from jinja2.utils import Markup, escape, pformat, urlize, soft_unicode, \
     unicode_urlencode, htmlsafe_json_dumps
 from jinja2.runtime import Undefined
 from jinja2.exceptions import FilterArgumentError
-from jinja2._compat import imap, string_types, text_type, iteritems
+from jinja2._compat import imap, string_types, text_type, iteritems, PY2
 from jinja2.liquid.datastructures import List
 from jinja2.liquid.filters import do_abs, do_append, do_ceil, do_divided_by, \
     do_modulo, do_compact, do_map, do_escape, do_escape_once, do_floor, \
@@ -780,7 +780,14 @@ def do_round(value, precision=0, method='common'):
     return res
 
 
+# Use a regular tuple repr here.  This is what we did in the past and we
+# really want to hide this custom type as much as possible.  In particular
+# we do not want to accidentally expose an auto generated repr in case
+# people start to print this out in comments or something similar for
+# debugging.
 _GroupTuple = namedtuple('_GroupTuple', ['grouper', 'list'])
+_GroupTuple.__repr__ = tuple.__repr__
+_GroupTuple.__str__ = tuple.__str__
 
 
 @environmentfilter
@@ -922,6 +929,9 @@ def do_select(*args, **kwargs):
 
         {{ numbers|select("odd") }}
         {{ numbers|select("odd") }}
+        {{ numbers|select("divisibleby", 3) }}
+        {{ numbers|select("lessthan", 42) }}
+        {{ strings|select("equalto", "mystring") }}
 
     .. versionadded:: 2.7
     """

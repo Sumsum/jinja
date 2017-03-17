@@ -243,6 +243,21 @@ class TestAsyncIncludes(object):
         """)
         assert t.render().strip() == '(FOO)'
 
+    def test_unoptimized_scopes_autoescape(self):
+        env = Environment(loader=DictLoader(dict(
+            o_printer='({{ o }})',
+        )), autoescape=True, enable_async=True)
+        t = env.from_string("""
+            {% macro outer(o) %}
+            {% macro inner() %}
+            {% include "o_printer" %}
+            {% endmacro %}
+            {{ inner() }}
+            {% endmacro %}
+            {{ outer("FOO") }}
+        """)
+        assert t.render().strip() == '(FOO)'
+
 
 @pytest.mark.core_tags
 @pytest.mark.for_loop
@@ -464,3 +479,7 @@ class TestAsyncForLoop(object):
             '<url><loc>/bar</loc></url>',
             '</urlset>',
         ]
+
+    def test_bare_async(self, test_env_async):
+        t = test_env_async.from_string('{% extends "header" %}')
+        assert t.render(foo=42) == '[42|23]'

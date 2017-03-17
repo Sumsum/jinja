@@ -483,3 +483,46 @@ class TestBug(object):
     def test_empty_if(self, env):
         t = env.from_string('{% if foo %}{% else %}42{% endif %}')
         assert t.render(foo=False) == '42'
+
+    def test_set_and_include(self):
+        env = Environment(loader=DictLoader({
+            'inc': 'bar',
+            'main': '{% set foo = "foo" %}{{ foo }}{% include "inc" %}'
+        }))
+        assert env.get_template('main').render() == 'foobar'
+
+    def test_loop_include(self):
+        env = Environment(loader=DictLoader({
+            'inc': '{{ item }}',
+            'main': '{% for item in [1, 2, 3] %}{% include "inc" %}{% endfor %}',
+        }))
+        assert env.get_template('main').render() == '123'
+
+    def test_grouper_repr(self):
+        from jinja2.filters import _GroupTuple
+        t = _GroupTuple('foo', [1, 2])
+        assert t.grouper == 'foo'
+        assert t.list == [1, 2]
+        assert repr(t) == "('foo', [1, 2])"
+        assert str(t) == "('foo', [1, 2])"
+
+    def test_legacy_custom_context(self, env):
+        from jinja2.runtime import Context, Undefined, missing
+
+        class MyContext(Context):
+            def resolve(self, name):
+                if name == 'foo':
+                    return 42
+                return super(MyContext, self).resolve(name)
+
+        x = MyContext(env, parent={'bar': 23}, name='foo', blocks={})
+        assert x._legacy_resolve_mode
+        assert x.resolve_or_missing('foo') == 42
+        assert x.resolve_or_missing('bar') == 23
+        assert x.resolve_or_missing('baz') is missing
+
+    def test_recursive_loop_bug(self, env):
+        tmpl = env.from_string('''
+            {%- for value in values recursive %}1{% else %}0{% endfor -%}
+        ''')
+        assert tmpl.render(values=[]) == '0'

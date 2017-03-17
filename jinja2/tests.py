@@ -162,6 +162,14 @@ def test_lessthan(value, other):
     return value < other
 
 
+def test_in(value, seq):
+    """Check if value is in seq.
+
+    .. versionadded:: 2.10
+    """
+    return value in seq
+
+
 TESTS = {
     'odd':              test_odd,
     'even':             test_even,
@@ -181,5 +189,6 @@ TESTS = {
     'equalto':          test_equalto,
     'escaped':          test_escaped,
     'greaterthan':      test_greaterthan,
-    'lessthan':         test_lessthan
+    'lessthan':         test_lessthan,
+    'in':               test_in
 }
